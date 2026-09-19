@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head><meta name="google-site-verification" content="3zkdjZdWnUzlQFxFSYTKsRhkQSsyvkRMHkEhYTBqJdA" />
+<head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Skyloop — Merge Plane Clicker</title>
@@ -8,10 +8,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-/* ============================================================
-   TOKENS — palette is fixed art direction (night airfield),
-   so it stays constant in light and dark viewers.
-   ============================================================ */
 :root{
   --ink:        #0f2836;
   --ink-deep:   #0a1d28;
@@ -48,9 +44,6 @@ img{ max-width:100%; }
 button{ font:inherit; color:inherit; cursor:pointer; }
 :focus-visible{ outline:2px solid var(--beacon); outline-offset:3px; border-radius:4px; }
 
-/* ============================================================
-   SHELL
-   ============================================================ */
 #shell{
   position:fixed; inset:0;
   display:grid;
@@ -58,10 +51,9 @@ button{ font:inherit; color:inherit; cursor:pointer; }
   user-select:none;
 }
 
-/* ---------- header ---------- */
 header{
   display:flex; align-items:center; gap:14px;
-  padding:14px clamp(14px,4vw,32px) 10px;
+  padding:14px clamp(120px,26vw,180px) 10px clamp(14px,4vw,32px);
   flex-wrap:wrap;
   z-index:3;
 }
@@ -90,8 +82,17 @@ header{
 .gem-label{ font-size:.85rem; color:var(--muted); }
 .rate{ display:block; font-size:.78rem; color:var(--horizon); }
 .who{
-  display:flex; align-items:center; gap:8px;
+  position:fixed;
+  top:14px;
+  right:clamp(14px,4vw,32px);
+  z-index:6;
+  display:flex; flex-direction:column; align-items:flex-end; gap:4px;
   font-size:.85rem; color:var(--muted);
+  background:rgba(10,29,40,.55);
+  border:1px solid var(--edge);
+  border-radius:12px;
+  padding:9px 12px;
+  backdrop-filter:blur(6px);
 }
 .who strong{ color:var(--contrail); font-weight:600; }
 .linkish{
@@ -101,7 +102,6 @@ header{
 }
 .linkish:hover{ color:var(--contrail); }
 
-/* ---------- airspace (the click surface) ---------- */
 #airspace{
   position:relative;
   overflow:hidden;
@@ -133,7 +133,6 @@ header{
 @keyframes pop{ 0%{transform:scale(.4);opacity:0} 60%{transform:scale(1.25)} 100%{transform:scale(1);opacity:1} }
 .plane.is-new svg{ animation:pop .45s cubic-bezier(.2,.9,.3,1.4) both; }
 
-/* hub */
 .hub{
   position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
   width:min(30vmin,190px); aspect-ratio:1;
@@ -164,7 +163,6 @@ header{
 }
 @keyframes rise{ to{ transform:translate(-50%,-46px); opacity:0; } }
 
-/* ---------- footer controls ---------- */
 footer{
   display:flex; gap:10px; align-items:center; justify-content:center;
   flex-wrap:wrap;
@@ -186,9 +184,6 @@ footer{
 .btn.ghost{ background:none; }
 .btn[disabled]{ opacity:.42; cursor:not-allowed; transform:none; }
 
-/* ============================================================
-   MODALS
-   ============================================================ */
 .scrim{
   position:fixed; inset:0; z-index:20;
   background:rgba(6,17,24,.78);
@@ -233,7 +228,6 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
 }
 .tab[aria-selected=true]{ background:rgba(61,127,149,.35); color:var(--contrail); border-color:var(--horizon); }
 
-/* quiz */
 .sum{
   font-family:var(--font-display); font-weight:800;
   font-size:clamp(2.4rem,9vw,3.6rem); text-align:center;
@@ -242,7 +236,6 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
 }
 .sum input{ width:4.5ch; text-align:center; font:inherit; color:var(--contrail); margin:0 0 0 .3em; }
 
-/* shop */
 .wallet{
   display:flex; justify-content:space-between; align-items:baseline;
   border-bottom:1px solid var(--edge); padding-bottom:12px; margin-bottom:6px;
@@ -262,6 +255,27 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
   border:1px solid var(--beacon-dim); border-radius:999px; padding:1px 7px; vertical-align:middle;
 }
 .price{ font-variant-numeric:tabular-nums; }
+
+.lb-row{
+  display:grid; grid-template-columns:2.2rem 1fr auto; gap:12px; align-items:center;
+  padding:10px 0; border-bottom:1px solid var(--edge);
+}
+.lb-row:last-of-type{ border-bottom:0; }
+.lb-rank{
+  font-family:var(--font-display); font-weight:800; color:var(--muted);
+  font-size:.95rem; text-align:center;
+}
+.lb-row:nth-of-type(1) .lb-rank{ color:var(--beacon); }
+.lb-name{ font-weight:600; }
+.lb-name .you{
+  margin-left:8px; font-size:.7rem; font-weight:700; color:var(--gem);
+  border:1px solid var(--gem); border-radius:999px; padding:1px 7px;
+}
+.lb-gems{
+  font-family:var(--font-display); font-weight:700; color:var(--gem);
+  font-variant-numeric:tabular-nums;
+}
+.lb-empty{ color:var(--muted); font-size:.88rem; text-align:center; padding:18px 0; }
 
 .toast{
   position:fixed; left:50%; bottom:86px; transform:translateX(-50%);
@@ -302,6 +316,7 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
     <div class="who">
       <span>Pilot <strong id="whoName">—</strong></span>
       <button class="linkish" id="logoutBtn">Sign out</button>
+      <button class="linkish" id="leaderboardBtn">Leaderboard</button>
     </div>
   </header>
 
@@ -321,7 +336,6 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
   </footer>
 </div>
 
-<!-- ---------------- AUTH ---------------- -->
 <div class="scrim" id="authModal">
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="authTitle">
     <h2 id="authTitle">Skyloop</h2>
@@ -334,6 +348,10 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
     <input id="authUser" type="text" autocomplete="username" maxlength="20" spellcheck="false">
     <label for="authPass">Password</label>
     <input id="authPass" type="password" autocomplete="current-password" maxlength="64">
+    <div id="authCountryRow" hidden>
+      <label for="authCountry">Country</label>
+      <select id="authCountry"></select>
+    </div>
     <p class="err" id="authErr"></p>
     <div class="row">
       <button class="btn primary" id="authGo">Sign in</button>
@@ -342,7 +360,6 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
   </div>
 </div>
 
-<!-- ---------------- QUIZ ---------------- -->
 <div class="scrim" id="quizModal" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="quizTitle">
     <h2 id="quizTitle">Clearance check</h2>
@@ -357,7 +374,6 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
   </div>
 </div>
 
-<!-- ---------------- SHOP ---------------- -->
 <div class="scrim" id="shopModal" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="shopTitle">
     <h2 id="shopTitle">Quartermaster</h2>
@@ -370,7 +386,35 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
   </div>
 </div>
 
-<!-- ---------------- HELP ---------------- -->
+<div class="scrim" id="leaderboardModal" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
+    <h2 id="lbTitle">Leaderboard</h2>
+    <div class="tabs" role="tablist">
+      <button class="tab" id="lbTabGlobal" role="tab" aria-selected="true">Global</button>
+      <button class="tab" id="lbTabCountry" role="tab" aria-selected="false">My country</button>
+    </div>
+    <p class="lede" id="lbNote"></p>
+    <div id="lbList"></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn ghost" id="lbReset">Reset All</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn primary" id="lbClose">Back to the loop</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="confirmModal" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h2 id="confirmTitle">Are you sure?</h2>
+    <p class="lede" id="confirmMsg"></p>
+    <div class="row">
+      <button class="btn ghost" id="confirmNo">No</button>
+      <button class="btn primary" id="confirmYes">Yes</button>
+    </div>
+  </div>
+</div>
+
 <div class="scrim" id="helpModal" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <h2 id="helpTitle">How to play</h2>
@@ -387,20 +431,13 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
 
 <script>
 "use strict";
-/* ==================================================================
-   1. SEASON + BALANCE CONFIG
-   Everything tunable lives in this block. Change numbers here to
-   rebalance; add objects to PLANE_TIERS / SHOP_ITEMS to extend.
-   ================================================================== */
-
 const GAME_SEASON = {
   id: "S1",
   name: "Season 1 — Monsoon Skies",
   tagline: "Monsoon winds are up, so contrail kits are cheap this season.",
-  // Seasonal multipliers applied globally. Retune per season.
-  clickBonus: 1,      // gems per tap  = BALANCE.gemsPerClick * clickBonus
-  incomeBonus: 1,     // fleet income  = base * incomeBonus
-  shopDiscount: 1     // every price   = base * shopDiscount
+  clickBonus: 1,
+  incomeBonus: 1,
+  shopDiscount: 1
 };
 
 const BALANCE = {
@@ -408,23 +445,22 @@ const BALANCE = {
   startingGems: 0,
   startingSlots: 6,
   maxSlots: 12,
-  planeBaseCost: 25,      // cost of plane #1
-  planeCostGrowth: 1.55,  // multiplied per plane already owned
+  planeBaseCost: 25,
+  planeCostGrowth: 1.55,
   speedBaseCost: 120,
   speedCostGrowth: 1.85,
-  speedStepPct: 0.18,     // each speed level: +18% income and orbit speed
+  speedStepPct: 0.18,
   boostBaseCost: 400,
   boostCostGrowth: 2.2,
   boostStepPct: 0.25,
   boostMaxLevel: 5,
   slotCostBase: 600,
   slotCostGrowth: 2.4,
-  tickMs: 1000,           // income tick
+  tickMs: 1000,
   autosaveMs: 4000,
-  baseOrbitSeconds: 26    // seconds for one lap at speed level 0
+  baseOrbitSeconds: 26
 };
 
-// Rank 0 upward. Add entries to extend the merge chain.
 const PLANE_TIERS = [
   { name: "Paper Dart",    income: 1,    color: "#cfe3e8", scale: 0.74 },
   { name: "Crop Duster",   income: 3,    color: "#9fd6c2", scale: 0.80 },
@@ -436,8 +472,32 @@ const PLANE_TIERS = [
   { name: "Monsoon Queen", income: 1600, color: "#ff8f6b", scale: 1.22 }
 ];
 
+const COUNTRIES = [
+  "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia","Austria",
+  "Azerbaijan","Bahamas","Bahrain","Bangladesh","Barbados","Belarus","Belgium","Belize","Benin",
+  "Bhutan","Bolivia","Bosnia and Herzegovina","Botswana","Brazil","Brunei","Bulgaria","Burkina Faso",
+  "Burundi","Cambodia","Cameroon","Canada","Cape Verde","Central African Republic","Chad","Chile",
+  "China","Colombia","Comoros","Congo","Costa Rica","Croatia","Cuba","Cyprus","Czechia","Denmark",
+  "Djibouti","Dominica","Dominican Republic","Ecuador","Egypt","El Salvador","Estonia","Eswatini",
+  "Ethiopia","Fiji","Finland","France","Gabon","Gambia","Georgia","Germany","Ghana","Greece",
+  "Grenada","Guatemala","Guinea","Guinea-Bissau","Guyana","Haiti","Honduras","Hungary","Iceland",
+  "India","Indonesia","Iran","Iraq","Ireland","Israel","Italy","Ivory Coast","Jamaica","Japan",
+  "Jordan","Kazakhstan","Kenya","Kiribati","Kuwait","Kyrgyzstan","Laos","Latvia","Lebanon","Lesotho",
+  "Liberia","Libya","Liechtenstein","Lithuania","Luxembourg","Madagascar","Malawi","Malaysia",
+  "Maldives","Mali","Malta","Mauritania","Mauritius","Mexico","Moldova","Monaco","Mongolia",
+  "Montenegro","Morocco","Mozambique","Myanmar","Namibia","Nauru","Nepal","Netherlands",
+  "New Zealand","Nicaragua","Niger","Nigeria","North Korea","North Macedonia","Norway","Oman",
+  "Pakistan","Palau","Palestine","Panama","Papua New Guinea","Paraguay","Peru","Philippines",
+  "Poland","Portugal","Qatar","Romania","Russia","Rwanda","Saint Lucia","Samoa","San Marino",
+  "Saudi Arabia","Senegal","Serbia","Seychelles","Sierra Leone","Singapore","Slovakia","Slovenia",
+  "Solomon Islands","Somalia","South Africa","South Korea","South Sudan","Spain","Sri Lanka",
+  "Sudan","Suriname","Sweden","Switzerland","Syria","Taiwan","Tajikistan","Tanzania","Thailand",
+  "Timor-Leste","Togo","Tonga","Trinidad and Tobago","Tunisia","Turkey","Turkmenistan","Tuvalu",
+  "Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan",
+  "Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe","Other"
+];
+
 const MATH_QUIZ = {
-  // Pools the gate draws from. Add or remove freely.
   makers: [
     () => { const a = rnd(2, 19), b = rnd(2, 19); return { q: a + " + " + b, a: a + b }; },
     () => { const a = rnd(2, 12), b = rnd(2, 9);  return { q: a + " × " + b, a: a * b }; },
@@ -445,8 +505,6 @@ const MATH_QUIZ = {
   ]
 };
 
-/* Shop catalogue. Each item is self-contained: price, availability,
-   and what buying it does. Add seasonal items with seasonal:true. */
 const SHOP_ITEMS = [
   {
     id: "plane",
@@ -486,9 +544,6 @@ const SHOP_ITEMS = [
   }
 ];
 
-/* ==================================================================
-   2. STORAGE  (localStorage, namespaced and versioned)
-   ================================================================== */
 const STORE = {
   users:   "skyloop/v1/users",
   session: "skyloop/v1/session",
@@ -505,22 +560,118 @@ function write(key, value){
 }
 function drop(key){ try { localStorage.removeItem(key); } catch(e){} }
 
-// Obfuscation only — deliberately not a security boundary. See the note
-// in the sign-in panel. Swap for a real backend before shipping anywhere.
 function scramble(str){
   let h = 2166136261;
   for (let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
   return (h >>> 0).toString(36);
 }
 
-/* ==================================================================
-   3. STATE
-   ================================================================== */
+/* ------------------------------------------------------------------
+   GLOBAL LEADERBOARD (shared database)
+   Only reachable when this page is opened through its Claude artifact
+   link, where window.claude exists. Pasted onto an outside website,
+   window.claude is undefined, dbCap stays null, and the leaderboard UI
+   quietly falls back to a per-browser view built from localStorage.
+   ------------------------------------------------------------------ */
+let dbCap = null;
+let dbSyncing = false;
+let lastSyncedGems = -1;
+
+async function initDb(){
+  try {
+    if (window.claude && typeof window.claude.use === "function"){
+      dbCap = await window.claude.use("db");
+    }
+  } catch (e){ dbCap = null; }
+}
+
+function currentCountry(){
+  const users = read(STORE.users, {});
+  return (users[user] && users[user].country) || "Unknown";
+}
+
+async function syncLeaderboard(force){
+  if (!dbCap || !user || !state) return;
+  const gems = Math.floor(state.gems);
+  if (!force && gems === lastSyncedGems) return;
+  if (dbSyncing) return;
+  dbSyncing = true;
+  try {
+    const users = read(STORE.users, {});
+    await dbCap.doc("leaderboard/" + user).set({
+      name: (users[user] && users[user].name) || user,
+      country: (users[user] && users[user].country) || "Unknown",
+      gems: gems,
+      updatedAt: Date.now()
+    });
+    lastSyncedGems = gems;
+  } catch (e){ /* transient — the next autosave tick will retry */ }
+  dbSyncing = false;
+}
+
+async function fetchGlobalBoard(){
+  const snap = await dbCap.collection("leaderboard").orderBy("gems", "desc").limit(50).get();
+  return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+}
+
+async function fetchCountryBoard(country){
+  const snap = await dbCap.collection("leaderboard")
+    .where("country", "==", country).orderBy("gems", "desc").limit(50).get();
+  return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
+}
+
+function localBoardRows(){
+  const users = read(STORE.users, {});
+  return Object.keys(users).map(key => {
+    const save = read(STORE.save(key), null);
+    return {
+      id: key,
+      name: users[key].name,
+      country: users[key].country || "Unknown",
+      gems: save ? save.gems : 0
+    };
+  }).sort((a, b) => b.gems - a.gems);
+}
+
+let confirmResolver = null;
+
+function askConfirm(title, message){
+  return new Promise(resolve => {
+    $("confirmTitle").textContent = title;
+    $("confirmMsg").textContent = message;
+    confirmResolver = resolve;
+    openModal($("confirmModal"));
+  });
+}
+
+function settleConfirm(result){
+  closeModal($("confirmModal"));
+  if (confirmResolver){ const r = confirmResolver; confirmResolver = null; r(result); }
+}
+
+async function resetProgress(){
+  const sure = await askConfirm(
+    "Reset all your progress?",
+    "Your gems, planes, and upgrades will all be wiped and you'll start again from zero. This can't be undone."
+  );
+  if (!sure) return;
+
+  state = freshState();
+  picked = null;
+  saveState();
+  renderFleet();
+  paintHud();
+  lastSyncedGems = -1;
+  await syncLeaderboard(true);
+  renderLeaderboard();
+  toast("Your progress has been reset.");
+}
+
 let state = null;
 let user = null;
-let picked = null;      // id of the currently selected plane
+let picked = null;
 let lastFrame = 0;
-let orbitPhase = 0;     // radians, advanced every frame
+let orbitPhase = 0;
 
 function freshState(){
   return {
@@ -541,11 +692,10 @@ function loadState(username){
   const raw = read(STORE.save(username), null);
   const s = Object.assign(freshState(), raw || {});
   if (!Array.isArray(s.planes)) s.planes = [];
-  // Drop planes whose rank no longer exists (e.g. after a config change).
   s.planes = s.planes.filter(p => p && PLANE_TIERS[p.tier]);
   s.slots = clamp(s.slots, BALANCE.startingSlots, BALANCE.maxSlots);
   if (s.season !== GAME_SEASON.id){
-    s.season = GAME_SEASON.id;       // carry the fleet into the new season
+    s.season = GAME_SEASON.id;
     s.seasonJustChanged = true;
   }
   return s;
@@ -554,9 +704,6 @@ function saveState(){
   if (user && state) write(STORE.save(user), state);
 }
 
-/* ==================================================================
-   4. DERIVED VALUES
-   ================================================================== */
 const speedMult  = s => 1 + s.speedLevel * BALANCE.speedStepPct;
 const boostMult  = s => 1 + s.boostLevel * BALANCE.boostStepPct;
 const perClick   = () => BALANCE.gemsPerClick * GAME_SEASON.clickBonus;
@@ -574,9 +721,6 @@ function addPlane(s, tier){
   return p;
 }
 
-/* ==================================================================
-   5. HELPERS
-   ================================================================== */
 const $ = id => document.getElementById(id);
 const rnd = (lo, hi) => Math.floor(Math.random() * (hi - lo + 1)) + lo;
 const clamp = (n, lo, hi) => Math.min(hi, Math.max(lo, n));
@@ -599,12 +743,19 @@ function toast(msg){
 function openModal(el){ el.hidden = false; }
 function closeModal(el){ el.hidden = true; }
 const anyModalOpen = () =>
-  ["authModal","quizModal","shopModal","helpModal"].some(id => !$(id).hidden);
+  ["authModal","quizModal","shopModal","helpModal","leaderboardModal","confirmModal"].some(id => !$(id).hidden);
 
-/* ==================================================================
-   6. AUTH
-   ================================================================== */
 let authMode = "login";
+
+function populateCountrySelect(){
+  const sel = $("authCountry");
+  if (sel.options.length) return;
+  COUNTRIES.forEach(c => {
+    const opt = document.createElement("option");
+    opt.value = c; opt.textContent = c;
+    sel.appendChild(opt);
+  });
+}
 
 function setAuthMode(mode){
   authMode = mode;
@@ -612,12 +763,15 @@ function setAuthMode(mode){
   $("tabSignup").setAttribute("aria-selected", mode === "signup");
   $("authGo").textContent = mode === "login" ? "Sign in" : "Create pilot";
   $("authPass").autocomplete = mode === "login" ? "current-password" : "new-password";
+  $("authCountryRow").hidden = mode !== "signup";
+  if (mode === "signup") populateCountrySelect();
   $("authErr").textContent = "";
 }
 
 function submitAuth(){
   const name = $("authUser").value.trim();
   const pass = $("authPass").value;
+  const country = $("authCountry").value;
   const err = $("authErr");
 
   if (name.length < 2){ err.textContent = "Pilot names need at least 2 characters."; return; }
@@ -628,7 +782,8 @@ function submitAuth(){
 
   if (authMode === "signup"){
     if (users[key]){ err.textContent = "That pilot name is taken on this browser. Sign in instead."; return; }
-    users[key] = { name: name, pass: scramble(pass), joined: Date.now() };
+    if (!country){ err.textContent = "Pick a country so the leaderboard can place you."; return; }
+    users[key] = { name: name, pass: scramble(pass), country: country, joined: Date.now() };
     if (!write(STORE.users, users)){
       err.textContent = "This browser is blocking storage, so progress cannot be saved.";
       return;
@@ -652,15 +807,12 @@ function signOut(){
   drop(STORE.session);
   user = null; state = null; picked = null;
   $("shell").hidden = true;
-  ["quizModal","shopModal","helpModal"].forEach(id => closeModal($(id)));
+  ["quizModal","shopModal","helpModal","leaderboardModal"].forEach(id => closeModal($(id)));
   $("orbit").innerHTML = "";
   setAuthMode("login");
   openModal($("authModal"));
 }
 
-/* ==================================================================
-   7. MATH GATE
-   ================================================================== */
 let quizAnswer = null;
 
 function newQuestion(){
@@ -690,9 +842,88 @@ function checkQuiz(){
   }
 }
 
-/* ==================================================================
-   8. SHOP
-   ================================================================== */
+let lbMode = "global";
+
+async function openLeaderboard(){
+  saveState();
+  await syncLeaderboard(true);
+  lbMode = "global";
+  $("lbTabGlobal").setAttribute("aria-selected", "true");
+  $("lbTabCountry").setAttribute("aria-selected", "false");
+  openModal($("leaderboardModal"));
+  renderLeaderboard();
+}
+
+function setLbMode(mode){
+  lbMode = mode;
+  $("lbTabGlobal").setAttribute("aria-selected", mode === "global");
+  $("lbTabCountry").setAttribute("aria-selected", mode === "country");
+  renderLeaderboard();
+}
+
+async function renderLeaderboard(){
+  const list = $("lbList");
+  const note = $("lbNote");
+  const myCountry = currentCountry();
+  const askedFor = lbMode;
+
+  list.innerHTML = "<p class='lb-empty'>Loading…</p>";
+
+  let rows = null;
+  if (dbCap){
+    note.textContent = askedFor === "global"
+      ? "Every pilot who has opened this page, ranked by gems."
+      : "Pilots from " + myCountry + ", ranked by gems.";
+    try {
+      rows = askedFor === "global" ? await fetchGlobalBoard() : await fetchCountryBoard(myCountry);
+    } catch (e){ rows = null; }
+  } else {
+    note.textContent = "Global rankings need this page opened via its Claude link. Showing pilots created on this browser instead.";
+    rows = localBoardRows();
+    if (askedFor === "country") rows = rows.filter(r => r.country === myCountry);
+  }
+
+  if (askedFor !== lbMode) return; // a newer tab switch already superseded this render
+
+  paintLbRows(rows, list);
+}
+
+function paintLbRows(rows, list){
+  list.innerHTML = "";
+  if (!rows || rows.length === 0){
+    const p = document.createElement("p");
+    p.className = "lb-empty";
+    p.textContent = "No pilots yet.";
+    list.appendChild(p);
+    return;
+  }
+  rows.forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "lb-row";
+
+    const rank = document.createElement("span");
+    rank.className = "lb-rank";
+    rank.textContent = String(i + 1);
+
+    const name = document.createElement("span");
+    name.className = "lb-name";
+    name.textContent = String(r.name || r.id || "Pilot");
+    if (r.id === user){
+      const you = document.createElement("span");
+      you.className = "you";
+      you.textContent = "YOU";
+      name.appendChild(you);
+    }
+
+    const gems = document.createElement("span");
+    gems.className = "lb-gems";
+    gems.textContent = money(Number(r.gems) || 0);
+
+    row.append(rank, name, gems);
+    list.appendChild(row);
+  });
+}
+
 function openShop(){
   $("shopLede").textContent = GAME_SEASON.tagline;
   renderShop();
@@ -741,9 +972,6 @@ function buy(item){
   toast(msg);
 }
 
-/* ==================================================================
-   9. TRACK RENDERING
-   ================================================================== */
 const PLANE_SVG = color => `
 <svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
   <path d="M32 4c3 0 5 6 5.4 13.4L58 31.6c1.2.8 1.8 2 1.8 3.3v3.6c0 .9-.9 1.5-1.7 1.2L37.6 33c-.2 5-.7 9.4-1.4 12.6l7.5 5.6c.7.5 1.1 1.3 1.1 2.2v2.2c0 .8-.8 1.4-1.6 1.1L32 53l-11.2 3.7c-.8.3-1.6-.3-1.6-1.1v-2.2c0-.9.4-1.7 1.1-2.2l7.5-5.6c-.7-3.2-1.2-7.6-1.4-12.6L5.9 39.7c-.8.3-1.7-.3-1.7-1.2v-3.6c0-1.3.6-2.5 1.8-3.3l20.6-14.2C27 10 29 4 32 4z"
@@ -812,7 +1040,7 @@ function positionFleet(){
     const ring = Math.floor(p.slot / perRing) % 2;
     const r = ring === 0 ? outer : inner;
     const idx = p.slot % perRing;
-    const dir = ring === 0 ? 1 : -1;                      // inner ring flies the other way
+    const dir = ring === 0 ? 1 : -1;
     const ang = orbitPhase * dir + (idx / perRing) * Math.PI * 2;
     const scale = PLANE_TIERS[p.tier].scale;
     el.style.transform =
@@ -821,9 +1049,6 @@ function positionFleet(){
   });
 }
 
-/* ==================================================================
-   10. MERGING
-   ================================================================== */
 function tapPlane(id){
   const plane = state.planes.find(p => p.id === id);
   if (!plane) return;
@@ -850,7 +1075,6 @@ function tapPlane(id){
     return;
   }
 
-  // Merge: the tapped plane levels up, the selected one is scrapped.
   plane.tier += 1;
   state.planes = state.planes.filter(p => p.id !== other.id);
   state.merges++;
@@ -863,9 +1087,6 @@ function tapPlane(id){
   toast("Merged into a " + PLANE_TIERS[plane.tier].name + ".");
 }
 
-/* ==================================================================
-   11. CLICKER
-   ================================================================== */
 function tapSky(ev){
   if (anyModalOpen()) return;
   state.gems += perClick();
@@ -885,9 +1106,6 @@ function tapSky(ev){
   paintHud();
 }
 
-/* ==================================================================
-   12. HUD + LOOPS
-   ================================================================== */
 function paintHud(){
   $("gemCount").textContent = money(state.gems);
   const rate = income(state);
@@ -916,9 +1134,6 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 
-/* ==================================================================
-   13. BOOT
-   ================================================================== */
 function startGame(){
   $("shell").hidden = false;
   $("seasonChip").textContent = GAME_SEASON.name;
@@ -931,6 +1146,7 @@ function startGame(){
     toast(GAME_SEASON.name + " has begun. Your fleet carried over.");
   }
   saveState();
+  syncLeaderboard(true);
 }
 
 function wire(){
@@ -940,6 +1156,13 @@ function wire(){
   ["authUser","authPass"].forEach(id =>
     $(id).addEventListener("keydown", e => { if (e.key === "Enter") submitAuth(); }));
   $("logoutBtn").addEventListener("click", signOut);
+  $("leaderboardBtn").addEventListener("click", e => { e.stopPropagation(); openLeaderboard(); });
+  $("lbClose").addEventListener("click", () => closeModal($("leaderboardModal")));
+  $("lbTabGlobal").addEventListener("click", () => setLbMode("global"));
+  $("lbTabCountry").addEventListener("click", () => setLbMode("country"));
+  $("lbReset").addEventListener("click", resetProgress);
+  $("confirmYes").addEventListener("click", () => settleConfirm(true));
+  $("confirmNo").addEventListener("click", () => settleConfirm(false));
 
   $("airspace").addEventListener("click", tapSky);
 
@@ -956,7 +1179,8 @@ function wire(){
 
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
-    ["quizModal","shopModal","helpModal"].forEach(id => closeModal($(id)));
+    if (!$("confirmModal").hidden){ settleConfirm(false); return; }
+    ["quizModal","shopModal","helpModal","leaderboardModal"].forEach(id => closeModal($(id)));
   });
 
   window.addEventListener("resize", () => { drawRings(); positionFleet(); });
@@ -964,12 +1188,13 @@ function wire(){
   document.addEventListener("visibilitychange", () => { if (document.hidden) saveState(); });
 
   setInterval(() => { if (state) tickIncome(); }, BALANCE.tickMs);
-  setInterval(saveState, BALANCE.autosaveMs);
+  setInterval(() => { saveState(); syncLeaderboard(false); }, BALANCE.autosaveMs);
   requestAnimationFrame(frame);
 }
 
 (function boot(){
   wire();
+  initDb().then(() => { if (user) syncLeaderboard(true); });
   setAuthMode("login");
   const session = read(STORE.session, null);
   const users = read(STORE.users, {});
