@@ -266,16 +266,30 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
   font-size:.95rem; text-align:center;
 }
 .lb-row:nth-of-type(1) .lb-rank{ color:var(--beacon); }
+.lb-namecol{ display:flex; flex-direction:column; gap:2px; min-width:0; }
 .lb-name{ font-weight:600; }
 .lb-name .you{
   margin-left:8px; font-size:.7rem; font-weight:700; color:var(--gem);
   border:1px solid var(--gem); border-radius:999px; padding:1px 7px;
 }
+.lb-country{ font-size:.76rem; color:var(--muted); }
 .lb-gems{
   font-family:var(--font-display); font-weight:700; color:var(--gem);
   font-variant-numeric:tabular-nums;
 }
 .lb-empty{ color:var(--muted); font-size:.88rem; text-align:center; padding:18px 0; }
+.lb-flag{ margin-right:6px; }
+.lb-your-rank{
+  display:flex; align-items:center; justify-content:space-between; gap:10px;
+  background:rgba(255,176,32,.1);
+  border:1px solid var(--beacon-dim);
+  border-radius:10px;
+  padding:9px 12px;
+  margin:0 0 14px;
+  font-size:.88rem; color:var(--contrail);
+  font-family:var(--font-display); font-weight:700;
+}
+.lb-your-rank:empty{ display:none; }
 
 .toast{
   position:fixed; left:50%; bottom:86px; transform:translateX(-50%);
@@ -389,11 +403,17 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
 <div class="scrim" id="leaderboardModal" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="lbTitle">
     <h2 id="lbTitle">Leaderboard</h2>
+    <div class="row" style="align-items:center; margin-bottom:14px;">
+      <span style="font-size:.84rem; color:var(--muted);">Your country</span>
+      <select id="lbCountrySelect" style="flex:1 1 160px; margin:0;"></select>
+      <button class="btn ghost" id="lbCountrySave" style="flex:0 0 auto;">Save</button>
+    </div>
     <div class="tabs" role="tablist">
       <button class="tab" id="lbTabGlobal" role="tab" aria-selected="true">Global</button>
       <button class="tab" id="lbTabCountry" role="tab" aria-selected="false">My country</button>
     </div>
     <p class="lede" id="lbNote"></p>
+    <p class="lb-your-rank" id="lbYourRank"></p>
     <div id="lbList"></div>
     <div class="row" style="margin-top:18px">
       <button class="btn ghost" id="lbReset">Reset All</button>
@@ -496,6 +516,52 @@ const COUNTRIES = [
   "Uganda","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay","Uzbekistan",
   "Vanuatu","Vatican City","Venezuela","Vietnam","Yemen","Zambia","Zimbabwe","Other"
 ];
+
+// ISO 3166-1 alpha-2 codes, keyed by the display names in COUNTRIES above.
+// "Other" and "Unknown" (pre-existing pilots with no country on file) have no
+// code, so flagEmoji() falls back to a plain globe for those.
+const COUNTRY_CODES = {
+  "Afghanistan":"AF","Albania":"AL","Algeria":"DZ","Andorra":"AD","Angola":"AO","Argentina":"AR",
+  "Armenia":"AM","Australia":"AU","Austria":"AT","Azerbaijan":"AZ","Bahamas":"BS","Bahrain":"BH",
+  "Bangladesh":"BD","Barbados":"BB","Belarus":"BY","Belgium":"BE","Belize":"BZ","Benin":"BJ",
+  "Bhutan":"BT","Bolivia":"BO","Bosnia and Herzegovina":"BA","Botswana":"BW","Brazil":"BR",
+  "Brunei":"BN","Bulgaria":"BG","Burkina Faso":"BF","Burundi":"BI","Cambodia":"KH","Cameroon":"CM",
+  "Canada":"CA","Cape Verde":"CV","Central African Republic":"CF","Chad":"TD","Chile":"CL",
+  "China":"CN","Colombia":"CO","Comoros":"KM","Congo":"CG","Costa Rica":"CR","Croatia":"HR",
+  "Cuba":"CU","Cyprus":"CY","Czechia":"CZ","Denmark":"DK","Djibouti":"DJ","Dominica":"DM",
+  "Dominican Republic":"DO","Ecuador":"EC","Egypt":"EG","El Salvador":"SV","Estonia":"EE",
+  "Eswatini":"SZ","Ethiopia":"ET","Fiji":"FJ","Finland":"FI","France":"FR","Gabon":"GA",
+  "Gambia":"GM","Georgia":"GE","Germany":"DE","Ghana":"GH","Greece":"GR","Grenada":"GD",
+  "Guatemala":"GT","Guinea":"GN","Guinea-Bissau":"GW","Guyana":"GY","Haiti":"HT","Honduras":"HN",
+  "Hungary":"HU","Iceland":"IS","India":"IN","Indonesia":"ID","Iran":"IR","Iraq":"IQ",
+  "Ireland":"IE","Israel":"IL","Italy":"IT","Ivory Coast":"CI","Jamaica":"JM","Japan":"JP",
+  "Jordan":"JO","Kazakhstan":"KZ","Kenya":"KE","Kiribati":"KI","Kuwait":"KW","Kyrgyzstan":"KG",
+  "Laos":"LA","Latvia":"LV","Lebanon":"LB","Lesotho":"LS","Liberia":"LR","Libya":"LY",
+  "Liechtenstein":"LI","Lithuania":"LT","Luxembourg":"LU","Madagascar":"MG","Malawi":"MW",
+  "Malaysia":"MY","Maldives":"MV","Mali":"ML","Malta":"MT","Mauritania":"MR","Mauritius":"MU",
+  "Mexico":"MX","Moldova":"MD","Monaco":"MC","Mongolia":"MN","Montenegro":"ME","Morocco":"MA",
+  "Mozambique":"MZ","Myanmar":"MM","Namibia":"NA","Nauru":"NR","Nepal":"NP","Netherlands":"NL",
+  "New Zealand":"NZ","Nicaragua":"NI","Niger":"NE","Nigeria":"NG","North Korea":"KP",
+  "North Macedonia":"MK","Norway":"NO","Oman":"OM","Pakistan":"PK","Palau":"PW",
+  "Palestine":"PS","Panama":"PA","Papua New Guinea":"PG","Paraguay":"PY","Peru":"PE",
+  "Philippines":"PH","Poland":"PL","Portugal":"PT","Qatar":"QA","Romania":"RO","Russia":"RU",
+  "Rwanda":"RW","Saint Lucia":"LC","Samoa":"WS","San Marino":"SM","Saudi Arabia":"SA",
+  "Senegal":"SN","Serbia":"RS","Seychelles":"SC","Sierra Leone":"SL","Singapore":"SG",
+  "Slovakia":"SK","Slovenia":"SI","Solomon Islands":"SB","Somalia":"SO","South Africa":"ZA",
+  "South Korea":"KR","South Sudan":"SS","Spain":"ES","Sri Lanka":"LK","Sudan":"SD",
+  "Suriname":"SR","Sweden":"SE","Switzerland":"CH","Syria":"SY","Taiwan":"TW","Tajikistan":"TJ",
+  "Tanzania":"TZ","Thailand":"TH","Timor-Leste":"TL","Togo":"TG","Tonga":"TO",
+  "Trinidad and Tobago":"TT","Tunisia":"TN","Turkey":"TR","Turkmenistan":"TM","Tuvalu":"TV",
+  "Uganda":"UG","Ukraine":"UA","United Arab Emirates":"AE","United Kingdom":"GB",
+  "United States":"US","Uruguay":"UY","Uzbekistan":"UZ","Vanuatu":"VU","Vatican City":"VA",
+  "Venezuela":"VE","Vietnam":"VN","Yemen":"YE","Zambia":"ZM","Zimbabwe":"ZW"
+};
+
+function flagEmoji(countryName){
+  const code = COUNTRY_CODES[countryName];
+  if (!code) return "🌐";
+  return String.fromCodePoint(...[...code.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65));
+}
 
 const MATH_QUIZ = {
   makers: [
@@ -609,14 +675,14 @@ async function syncLeaderboard(force){
   dbSyncing = false;
 }
 
-async function fetchGlobalBoard(){
-  const snap = await dbCap.collection("leaderboard").orderBy("gems", "desc").limit(50).get();
+async function fetchGlobalFull(){
+  const snap = await dbCap.collection("leaderboard").orderBy("gems", "desc").limit(1000).get();
   return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
 }
 
-async function fetchCountryBoard(country){
+async function fetchCountryFull(country){
   const snap = await dbCap.collection("leaderboard")
-    .where("country", "==", country).orderBy("gems", "desc").limit(50).get();
+    .where("country", "==", country).orderBy("gems", "desc").limit(1000).get();
   return snap.docs.map(d => Object.assign({ id: d.id }, d.data()));
 }
 
@@ -731,7 +797,7 @@ function money(n){
   const units = ["k","M","B","T","Qa"];
   let i = -1, v = n;
   while (v >= 1000 && i < units.length - 1){ v /= 1000; i++; }
-  return (v < 10 ? v.toFixed(1) : Math.floor(v)) + units[i];
+  return v.toFixed(2) + units[i];
 }
 let toastTimer;
 function toast(msg){
@@ -747,14 +813,19 @@ const anyModalOpen = () =>
 
 let authMode = "login";
 
-function populateCountrySelect(){
-  const sel = $("authCountry");
-  if (sel.options.length) return;
+function fillCountrySelect(sel, includePlaceholder){
+  if (sel.dataset.filled) return;
+  if (includePlaceholder){
+    const ph = document.createElement("option");
+    ph.value = ""; ph.textContent = "Not set";
+    sel.appendChild(ph);
+  }
   COUNTRIES.forEach(c => {
     const opt = document.createElement("option");
     opt.value = c; opt.textContent = c;
     sel.appendChild(opt);
   });
+  sel.dataset.filled = "1";
 }
 
 function setAuthMode(mode){
@@ -764,8 +835,20 @@ function setAuthMode(mode){
   $("authGo").textContent = mode === "login" ? "Sign in" : "Create pilot";
   $("authPass").autocomplete = mode === "login" ? "current-password" : "new-password";
   $("authCountryRow").hidden = mode !== "signup";
-  if (mode === "signup") populateCountrySelect();
+  if (mode === "signup") fillCountrySelect($("authCountry"), false);
   $("authErr").textContent = "";
+}
+
+function saveMyCountry(){
+  const val = $("lbCountrySelect").value;
+  if (!val){ toast("Pick a country first."); return; }
+  const users = read(STORE.users, {});
+  if (!users[user]) return;
+  users[user].country = val;
+  write(STORE.users, users);
+  lastSyncedGems = -1;
+  syncLeaderboard(true).then(renderLeaderboard);
+  toast("Country set to " + val + ".");
 }
 
 function submitAuth(){
@@ -846,6 +929,9 @@ let lbMode = "global";
 
 async function openLeaderboard(){
   saveState();
+  fillCountrySelect($("lbCountrySelect"), true);
+  const users = read(STORE.users, {});
+  $("lbCountrySelect").value = (users[user] && users[user].country) || "";
   await syncLeaderboard(true);
   lbMode = "global";
   $("lbTabGlobal").setAttribute("aria-selected", "true");
@@ -864,28 +950,57 @@ function setLbMode(mode){
 async function renderLeaderboard(){
   const list = $("lbList");
   const note = $("lbNote");
+  const yourRank = $("lbYourRank");
   const myCountry = currentCountry();
   const askedFor = lbMode;
 
   list.innerHTML = "<p class='lb-empty'>Loading…</p>";
+  yourRank.textContent = "";
 
-  let rows = null;
+  let full = null;
   if (dbCap){
     note.textContent = askedFor === "global"
       ? "Every pilot who has opened this page, ranked by gems."
       : "Pilots from " + myCountry + ", ranked by gems.";
     try {
-      rows = askedFor === "global" ? await fetchGlobalBoard() : await fetchCountryBoard(myCountry);
-    } catch (e){ rows = null; }
+      full = askedFor === "global" ? await fetchGlobalFull() : await fetchCountryFull(myCountry);
+    } catch (e){ full = null; }
   } else {
     note.textContent = "Global rankings need this page opened via its Claude link. Showing pilots created on this browser instead.";
-    rows = localBoardRows();
-    if (askedFor === "country") rows = rows.filter(r => r.country === myCountry);
+    full = localBoardRows();
+    if (askedFor === "country") full = full.filter(r => r.country === myCountry);
   }
 
   if (askedFor !== lbMode) return; // a newer tab switch already superseded this render
 
-  paintLbRows(rows, list);
+  paintLbRows(full ? full.slice(0, 100) : null, list);
+  paintYourRank(full, yourRank);
+}
+
+function paintYourRank(full, el){
+  el.innerHTML = "";
+  if (!full) return;
+  const idx = full.findIndex(r => r.id === user);
+  if (idx === -1){
+    el.textContent = "You're not ranked yet — earn some gems!";
+    return;
+  }
+  const me = full[idx];
+  const flag = document.createElement("span");
+  flag.className = "lb-flag";
+  flag.textContent = flagEmoji(me.country);
+
+  const label = document.createElement("span");
+  label.textContent = "Your rank: #" + (idx + 1) + " (" + (me.country || "Unknown") + ")";
+
+  const gems = document.createElement("span");
+  gems.className = "lb-gems";
+  gems.textContent = money(Number(me.gems) || 0);
+
+  const left = document.createElement("span");
+  left.append(flag, label);
+
+  el.append(left, gems);
 }
 
 function paintLbRows(rows, list){
@@ -907,7 +1022,8 @@ function paintLbRows(rows, list){
 
     const name = document.createElement("span");
     name.className = "lb-name";
-    name.textContent = String(r.name || r.id || "Pilot");
+    name.appendChild(document.createTextNode(String(r.name || r.id || "Pilot")));
+
     if (r.id === user){
       const you = document.createElement("span");
       you.className = "you";
@@ -915,11 +1031,23 @@ function paintLbRows(rows, list){
       name.appendChild(you);
     }
 
+    const countryLine = document.createElement("span");
+    countryLine.className = "lb-country";
+    const flag = document.createElement("span");
+    flag.className = "lb-flag";
+    flag.textContent = flagEmoji(r.country);
+    countryLine.appendChild(flag);
+    countryLine.appendChild(document.createTextNode(r.country || "Unknown"));
+
+    const nameCol = document.createElement("span");
+    nameCol.className = "lb-namecol";
+    nameCol.append(name, countryLine);
+
     const gems = document.createElement("span");
     gems.className = "lb-gems";
     gems.textContent = money(Number(r.gems) || 0);
 
-    row.append(rank, name, gems);
+    row.append(rank, nameCol, gems);
     list.appendChild(row);
   });
 }
@@ -1160,6 +1288,7 @@ function wire(){
   $("lbClose").addEventListener("click", () => closeModal($("leaderboardModal")));
   $("lbTabGlobal").addEventListener("click", () => setLbMode("global"));
   $("lbTabCountry").addEventListener("click", () => setLbMode("country"));
+  $("lbCountrySave").addEventListener("click", saveMyCountry);
   $("lbReset").addEventListener("click", resetProgress);
   $("confirmYes").addEventListener("click", () => settleConfirm(true));
   $("confirmNo").addEventListener("click", () => settleConfirm(false));
