@@ -438,9 +438,6 @@ textarea:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color
     <p class="lb-your-rank" id="lbYourRank"></p>
     <div id="lbList"></div>
     <div class="row" style="margin-top:18px">
-      <button class="btn ghost" id="lbReset">Reset All</button>
-    </div>
-    <div class="row" style="margin-top:10px">
       <button class="btn primary" id="lbClose">Back to the loop</button>
     </div>
   </div>
@@ -472,6 +469,13 @@ textarea:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color
     <div id="setPaneGeneral">
       <p class="lede">Pick a wallpaper. Locked ones unlock when you buy that season in the shop.</p>
       <div id="wallpaperGrid" class="wallpaper-grid"></div>
+
+      <p class="lede" style="margin-top:22px;">Careful — these can't be undone.</p>
+      <div class="row" style="flex-direction:column; align-items:stretch; gap:8px;">
+        <button class="btn ghost" id="resetPlanesBtn">💀 Reset Planes</button>
+        <button class="btn ghost" id="resetGemsBtn">💀 Reset Gems</button>
+        <button class="btn ghost" id="resetAllBtn">☠️ Reset All Progress</button>
+      </div>
     </div>
 
     <div id="setPaneFruits" hidden>
@@ -489,6 +493,10 @@ textarea:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color
       <div class="row" style="justify-content:space-between;">
         <span>Ambient music</span>
         <button class="btn ghost" id="toggleMusic">Off</button>
+      </div>
+      <div class="row" style="justify-content:space-between; margin-top:10px; align-items:center;">
+        <span>Sound</span>
+        <select id="trackSelect" style="flex:1 1 160px; margin:0;"></select>
       </div>
       <div class="row" style="justify-content:space-between; margin-top:10px;">
         <span>Merge vibration</span>
@@ -833,6 +841,7 @@ function settleConfirm(result){
 }
 
 async function resetProgress(){
+  closeModal($("settingsModal"));
   const sure = await askConfirm(
     "Reset all your progress?",
     "Your gems, planes, and upgrades will all be wiped and you'll start again from zero. This can't be undone."
@@ -850,6 +859,39 @@ async function resetProgress(){
   toast("Your progress has been reset.");
 }
 
+async function resetPlanesOnly(){
+  closeModal($("settingsModal"));
+  const sure = await askConfirm(
+    "Reset your planes?",
+    "Every plane on your loop will be scrapped. Your gems and upgrades stay untouched. This can't be undone."
+  );
+  if (!sure) return;
+
+  state.planes = [];
+  state.nextPlaneId = 1;
+  picked = null;
+  saveState();
+  renderFleet();
+  paintHud();
+  toast("Your fleet has been cleared.");
+}
+
+async function resetGemsOnly(){
+  closeModal($("settingsModal"));
+  const sure = await askConfirm(
+    "Reset your gems?",
+    "Your gem balance will drop to zero. Your planes, upgrades, and unlocked seasons stay untouched. This can't be undone."
+  );
+  if (!sure) return;
+
+  state.gems = 0;
+  saveState();
+  paintHud();
+  lastSyncedGems = -1;
+  await syncLeaderboard(true);
+  toast("Your gems have been reset to zero.");
+}
+
 /* ------------------------------------------------------------------
    AMBIENT MUSIC — a small original generative pad (four sine tones with
    slow, staggered volume drift), not a recording of any real track.
@@ -859,10 +901,27 @@ async function resetProgress(){
 let audioCtx = null;
 let musicNodes = [];
 let musicMaster = null;
+let noiseBuffer = null;
+let ambientTimer = null;
+
+const SOUND_TRACKS = [
+  { id: "ocean",  name: "Ocean Waves" },
+  { id: "forest", name: "Forest Birds" },
+  { id: "pad",    name: "Calm Pad" }
+];
 
 function currentVolume(){
   if (!state || !state.settings) return 0.6;
   return state.settings.muted ? 0 : state.settings.volume;
+}
+
+function getNoiseBuffer(){
+  if (noiseBuffer) return noiseBuffer;
+  const len = audioCtx.sampleRate * 2;
+  noiseBuffer = audioCtx.createBuffer(1, len, audioCtx.sampleRate);
+  const data = noiseBuffer.getChannelData(0);
+  for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+  return noiseBuffer;
 }
 
 function startMusic(){
@@ -872,25 +931,32 @@ function startMusic(){
   } catch (e){ return; }
 
   stopMusic();
-  const freqs = [130.81, 164.81, 196.00, 246.94]; // a calm, consonant chord
   const master = audioCtx.createGain();
-  master.gain.value = 0.08 * currentVolume();
+  master.gain.value = 0.6 * currentVolume();
   master.connect(audioCtx.destination);
   musicMaster = master;
   musicNodes.push(master);
 
+  const track = (state && state.settings && state.settings.track) || "ocean";
+  if (track === "ocean") buildOceanTrack(master);
+  else if (track === "forest") buildForestTrack(master);
+  else buildPadTrack(master);
+}
+
+function buildPadTrack(master){
+  const freqs = [130.81, 164.81, 196.00, 246.94]; // a calm, consonant chord
   freqs.forEach((f, i) => {
     const osc = audioCtx.createOscillator();
     osc.type = "sine";
     osc.frequency.value = f;
     const gain = audioCtx.createGain();
-    gain.gain.value = 0.03;
+    gain.gain.value = 0.18;
     osc.connect(gain); gain.connect(master);
 
     const lfo = audioCtx.createOscillator();
     lfo.frequency.value = 0.04 + i * 0.015; // slow "breathing" drift, staggered per voice
     const lfoGain = audioCtx.createGain();
-    lfoGain.gain.value = 0.02;
+    lfoGain.gain.value = 0.05;
     lfo.connect(lfoGain);
     lfoGain.connect(gain.gain);
 
@@ -899,11 +965,135 @@ function startMusic(){
   });
 }
 
+function buildOceanTrack(master){
+  // Body — slow, low-filtered noise for the rolling swell underneath
+  const body = audioCtx.createBufferSource();
+  body.buffer = getNoiseBuffer();
+  body.loop = true;
+  const bodyFilter = audioCtx.createBiquadFilter();
+  bodyFilter.type = "lowpass";
+  bodyFilter.frequency.value = 420;
+  bodyFilter.Q.value = 0.5;
+  const bodyGain = audioCtx.createGain();
+  bodyGain.gain.value = 0.34;
+  body.connect(bodyFilter); bodyFilter.connect(bodyGain); bodyGain.connect(master);
+
+  // Sparkle — a brighter, bandpassed noise layer for the fizzing foam on top
+  const sparkle = audioCtx.createBufferSource();
+  sparkle.buffer = getNoiseBuffer();
+  sparkle.loop = true;
+  const sparkleFilter = audioCtx.createBiquadFilter();
+  sparkleFilter.type = "bandpass";
+  sparkleFilter.frequency.value = 2400;
+  sparkleFilter.Q.value = 0.7;
+  const sparkleGain = audioCtx.createGain();
+  sparkleGain.gain.value = 0.09;
+  sparkle.connect(sparkleFilter); sparkleFilter.connect(sparkleGain); sparkleGain.connect(master);
+
+  // One swell LFO drives both layers together so the foam rises and falls with the wave
+  const swellLfo = audioCtx.createOscillator();
+  swellLfo.frequency.value = 0.11; // roughly a 9-second wave cycle
+  const swellToBody = audioCtx.createGain();
+  swellToBody.gain.value = 0.24;
+  swellLfo.connect(swellToBody); swellToBody.connect(bodyGain.gain);
+  const swellToSparkle = audioCtx.createGain();
+  swellToSparkle.gain.value = 0.07;
+  swellLfo.connect(swellToSparkle); swellToSparkle.connect(sparkleGain.gain);
+
+  // Slow filter drift on the body for a shifting "shhh" texture
+  const filterLfo = audioCtx.createOscillator();
+  filterLfo.frequency.value = 0.045;
+  const filterLfoGain = audioCtx.createGain();
+  filterLfoGain.gain.value = 180;
+  filterLfo.connect(filterLfoGain); filterLfoGain.connect(bodyFilter.frequency);
+
+  body.start(); sparkle.start(); swellLfo.start(); filterLfo.start();
+  musicNodes.push(
+    body, bodyFilter, bodyGain, sparkle, sparkleFilter, sparkleGain,
+    swellLfo, swellToBody, swellToSparkle, filterLfo, filterLfoGain
+  );
+
+  scheduleAmbientEvent("ocean", master);
+}
+
+function playSplash(master){
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const src = audioCtx.createBufferSource();
+  src.buffer = getNoiseBuffer();
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = "bandpass";
+  filter.frequency.value = 900 + Math.random() * 1800;
+  filter.Q.value = 1.1;
+
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.16 + Math.random() * 0.08, now + 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.5 + Math.random() * 0.4);
+
+  src.connect(filter); filter.connect(g); g.connect(master);
+  src.start(now);
+  src.stop(now + 1.1);
+}
+
+function buildForestTrack(master){
+  const src = audioCtx.createBufferSource();
+  src.buffer = getNoiseBuffer();
+  src.loop = true;
+
+  const airFilter = audioCtx.createBiquadFilter();
+  airFilter.type = "highpass";
+  airFilter.frequency.value = 2200;
+
+  const airGain = audioCtx.createGain();
+  airGain.gain.value = 0.05;
+
+  src.connect(airFilter); airFilter.connect(airGain); airGain.connect(master);
+  src.start();
+  musicNodes.push(src, airFilter, airGain);
+
+  scheduleAmbientEvent("forest", master);
+}
+
+function scheduleAmbientEvent(track, master){
+  if (!state || !state.settings || !state.settings.music || state.settings.track !== track) return;
+  const delay = track === "ocean"
+    ? 2800 + Math.random() * 4500   // an occasional splash
+    : 900 + Math.random() * 2400;   // more frequent bird chirps
+  ambientTimer = setTimeout(() => {
+    if (track === "ocean") playSplash(master); else playChirp(master);
+    scheduleAmbientEvent(track, master);
+  }, delay);
+}
+
+function playChirp(master){
+  if (!audioCtx) return;
+  const now = audioCtx.currentTime;
+  const base = 1800 + Math.random() * 1400;
+
+  const osc = audioCtx.createOscillator();
+  osc.type = "sine";
+  osc.frequency.setValueAtTime(base, now);
+  osc.frequency.exponentialRampToValueAtTime(base * (1.3 + Math.random() * 0.5), now + 0.08);
+  osc.frequency.exponentialRampToValueAtTime(base * 0.9, now + 0.16);
+
+  const g = audioCtx.createGain();
+  g.gain.setValueAtTime(0.0001, now);
+  g.gain.exponentialRampToValueAtTime(0.22, now + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, now + 0.22);
+
+  osc.connect(g); g.connect(master);
+  osc.start(now);
+  osc.stop(now + 0.26);
+}
+
 function applyMusicVolume(){
-  if (musicMaster) musicMaster.gain.value = 0.08 * currentVolume();
+  if (musicMaster) musicMaster.gain.value = 0.6 * currentVolume();
 }
 
 function stopMusic(){
+  if (ambientTimer){ clearTimeout(ambientTimer); ambientTimer = null; }
   musicNodes.forEach(n => {
     try { n.stop && n.stop(); } catch (e){}
     try { n.disconnect && n.disconnect(); } catch (e){}
@@ -914,7 +1104,7 @@ function stopMusic(){
 
 function vibrateOnMerge(){
   if (state && state.settings && state.settings.vibrate && navigator.vibrate){
-    try { navigator.vibrate(35); } catch (e){}
+    try { navigator.vibrate(70); } catch (e){}
   }
 }
 
@@ -933,13 +1123,43 @@ function checkMilestones(){
   toast("1,000,000,000 gems! Every season and wallpaper is unlocked, plus a bonus " + PLANE_TIERS[firstFruitIndex].name + ".");
 }
 
+// Grants the one-time fruit-discovery bonus and marks the fruit as seen.
+// Works on whatever state object is passed in (the live game state, or a
+// save being migrated on load) and returns the gem reward granted, if any,
+// so callers can decide whether to show a toast for it.
+function noteFruitDiscovered(s, tierIndex){
+  const tier = PLANE_TIERS[tierIndex];
+  if (!tier || tier.kind !== "fruit") return 0;
+  if (s.fruitsSeen.includes(tierIndex)) return 0;
+  s.fruitsSeen.push(tierIndex);
+  const fruitStart = PLANE_TIERS.findIndex(t => t.kind === "fruit");
+  const fruitIdx = tierIndex - fruitStart;
+  const reward = 10000000 + fruitIdx * 10000000; // 10M, 20M, 30M, ... up the fruit order
+  s.gems += reward;
+  if (s.gems > s.lifetimeGems) s.lifetimeGems = s.gems;
+  return reward;
+}
+
+function checkQuests(){
+  if (!state) return;
+  QUESTS.forEach((q, i) => {
+    if (state.lifetimeGems >= q.gems && !state.questsClaimed.includes(i)){
+      state.questsClaimed.push(i);
+      state.gems += q.reward;
+      if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
+      paintHud();
+      toast("Quest complete — " + money(q.gems) + " gems reached! +" + money(q.reward) + " bonus.");
+    }
+  });
+}
+
 async function sendFeedback(){
   const box = $("feedbackText");
   const note = $("feedbackNote");
   const msg = box.value.trim();
   if (!msg){ note.textContent = "Type something first."; return; }
   if (!dbCap){
-    note.textContent = "Feedback only reaches me when this page is opened via its Claude link.";
+    note.textContent = "Feedback failed to send. Please try again.";
     return;
   }
   try {
@@ -950,9 +1170,9 @@ async function sendFeedback(){
       ts: Date.now()
     });
     box.value = "";
-    note.textContent = "Sent — thank you!";
+    note.textContent = "Feedback sent successfully! Thank you.";
   } catch (e){
-    note.textContent = "Could not send right now. Try again in a moment.";
+    note.textContent = "Feedback failed to send. Please try again.";
   }
 }
 
@@ -1042,7 +1262,7 @@ function freshState(){
     lifetimeGems: 0,
     fruitsSeen: [],
     questsClaimed: [],
-    settings: { music: false, vibrate: true, volume: 0.6, muted: false },
+    settings: { music: true, vibrate: true, volume: 0.6, muted: false, track: "ocean" },
     createdAt: Date.now()
   };
 }
@@ -1056,20 +1276,27 @@ function loadState(username){
   if (!Array.isArray(s.unlockedSeasons)) s.unlockedSeasons = [1];
   if (!s.unlockedSeasons.includes(1)) s.unlockedSeasons.push(1);
   if (!s.activeWallpaper || !SEASON_THEMES.find(t => t.id === s.activeWallpaper)) s.activeWallpaper = 1;
-  if (!s.settings) s.settings = { music: false, vibrate: true, volume: 0.6, muted: false };
+  if (!s.settings) s.settings = { music: false, vibrate: true, volume: 0.6, muted: false, track: "ocean" };
   if (typeof s.settings.music !== "boolean") s.settings.music = false;
   if (typeof s.settings.vibrate !== "boolean") s.settings.vibrate = true;
   if (typeof s.settings.volume !== "number" || s.settings.volume < 0 || s.settings.volume > 1) s.settings.volume = 0.6;
   if (typeof s.settings.muted !== "boolean") s.settings.muted = false;
+  if (typeof s.settings.track !== "string" || !SOUND_TRACKS.find(t => t.id === s.settings.track)) s.settings.track = "ocean";
   if (typeof s.milestone1B !== "boolean") s.milestone1B = false;
   if (typeof s.lifetimeGems !== "number" || s.lifetimeGems < s.gems) s.lifetimeGems = s.gems;
   if (!Array.isArray(s.fruitsSeen)) s.fruitsSeen = [];
   if (!Array.isArray(s.questsClaimed)) s.questsClaimed = [];
   s.planes.forEach(p => {
-    if (PLANE_TIERS[p.tier] && PLANE_TIERS[p.tier].kind === "fruit" && !s.fruitsSeen.includes(p.tier)){
-      s.fruitsSeen.push(p.tier);
+    if (PLANE_TIERS[p.tier] && PLANE_TIERS[p.tier].kind === "fruit"){
+      noteFruitDiscovered(s, p.tier);
     }
   });
+  const fruitStartIdx = PLANE_TIERS.findIndex(t => t.kind === "fruit");
+  if (fruitStartIdx !== -1){
+    for (let i = fruitStartIdx; i <= (s.highestTierReached || 0) && i < PLANE_TIERS.length; i++){
+      if (!s.fruitsSeen.includes(i)) s.fruitsSeen.push(i);
+    }
+  }
   if (s.season !== GAME_SEASON.id){
     s.season = GAME_SEASON.id;
     s.seasonJustChanged = true;
@@ -1095,6 +1322,8 @@ function addPlane(s, tier){
   const p = { id: s.nextPlaneId++, tier, slot, fresh: true };
   s.planes.push(p);
   if (tier > (s.highestTierReached || 0)) s.highestTierReached = tier;
+  const reward = noteFruitDiscovered(s, tier);
+  if (reward > 0 && s === state) toast(PLANE_TIERS[tier].name + " discovered! +" + money(reward) + " bonus gems.");
   return p;
 }
 
@@ -1263,13 +1492,13 @@ function setLbMode(mode){
 const SETTINGS_TABS = ["general", "fruits", "quests", "sound", "feedback", "rating"];
 
 const QUESTS = [
-  { gems: 1000,        reward: "Just the glory — keep tapping." },
-  { gems: 10000,       reward: "You're building a real fleet now." },
-  { gems: 100000,      reward: "The loop is getting crowded." },
-  { gems: 1000000,     reward: "Millionaire pilot status." },
-  { gems: 10000000,    reward: "Getting close to fruit territory." },
-  { gems: 100000000,   reward: "The sky is nearly yours." },
-  { gems: 1000000000,  reward: "Unlocks every season and wallpaper, plus a bonus fruit plane." }
+  { gems: 1000,        reward: 10000 },
+  { gems: 10000,       reward: 15000 },
+  { gems: 100000,      reward: 20000 },
+  { gems: 1000000,     reward: 25000 },
+  { gems: 10000000,    reward: 30000 },
+  { gems: 100000000,   reward: 35000 },
+  { gems: 1000000000,  reward: 40000 }
 ];
 
 function openSettings(){
@@ -1287,7 +1516,7 @@ function renderFruitsList(){
   wrap.innerHTML = "";
   PLANE_TIERS.forEach((tier, idx) => {
     if (tier.kind !== "fruit") return;
-    const unlocked = state.fruitsSeen.includes(idx);
+    const unlocked = state.fruitsSeen.includes(idx) || idx <= (state.highestTierReached || 0);
     const row = document.createElement("div");
     row.className = "item";
 
@@ -1326,7 +1555,9 @@ function renderQuests(){
     badge.textContent = done ? "Done" : "In progress";
 
     const p = document.createElement("p");
-    p.textContent = q.reward;
+    p.textContent = done
+      ? ("Earned +" + money(q.reward) + " gems.")
+      : ("Reward: +" + money(q.reward) + " gems on completion.");
 
     row.append(h, badge, p);
     wrap.appendChild(row);
@@ -1339,7 +1570,7 @@ function setSettingsTab(tab){
     $("setTab" + cap).setAttribute("aria-selected", t === tab);
     $("setPane" + cap).hidden = t !== tab;
   });
-  if (tab === "feedback") $("feedbackNote").textContent = dbCap ? "" : "Feedback only reaches me when this page is opened via its Claude link.";
+  if (tab === "feedback") $("feedbackNote").textContent = "";
 }
 
 function renderWallpaperGrid(){
@@ -1374,12 +1605,31 @@ function renderWallpaperGrid(){
   });
 }
 
+function fillTrackSelect(){
+  const sel = $("trackSelect");
+  if (sel.dataset.filled) return;
+  SOUND_TRACKS.forEach(t => {
+    const opt = document.createElement("option");
+    opt.value = t.id; opt.textContent = t.name;
+    sel.appendChild(opt);
+  });
+  sel.dataset.filled = "1";
+}
+
 function syncSoundButtons(){
   $("toggleMusic").textContent = state.settings.music ? "On" : "Off";
   $("toggleVibrate").textContent = state.settings.vibrate ? "On" : "Off";
   $("volumeSlider").value = Math.round(state.settings.volume * 100);
   $("muteBtn").textContent = state.settings.muted ? "Unmute" : "Mute";
+  fillTrackSelect();
+  $("trackSelect").value = state.settings.track;
   applyMusicVolume();
+}
+
+function onTrackChange(e){
+  state.settings.track = e.target.value;
+  saveState();
+  if (state.settings.music) startMusic();
 }
 
 function onVolumeChange(e){
@@ -1720,6 +1970,7 @@ function tapPlane(id){
   state.planes = state.planes.filter(p => p.id !== other.id);
   state.merges++;
   if (plane.tier > (state.highestTierReached || 0)) state.highestTierReached = plane.tier;
+  const fruitReward = noteFruitDiscovered(state, plane.tier);
   picked = null;
 
   const el = $("orbit").querySelector('[data-id="' + plane.id + '"]');
@@ -1728,7 +1979,12 @@ function tapPlane(id){
   renderFleet(); paintHud(); saveState();
   vibrateOnMerge();
   checkMilestones();
-  toast("Merged into a " + PLANE_TIERS[plane.tier].name + ".");
+  checkQuests();
+  if (fruitReward > 0){
+    toast(PLANE_TIERS[plane.tier].name + " discovered! +" + money(fruitReward) + " bonus gems.");
+  } else {
+    toast("Merged into a " + PLANE_TIERS[plane.tier].name + ".");
+  }
 }
 
 function tapSky(ev){
@@ -1737,6 +1993,7 @@ function tapSky(ev){
   state.taps++;
   if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
   checkMilestones();
+  checkQuests();
   if (picked !== null){ picked = null; renderFleet(); }
 
   const s = document.createElement("span");
@@ -1771,6 +2028,7 @@ function tickIncome(){
     if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
     paintHud();
     checkMilestones();
+    checkQuests();
   }
 }
 
@@ -1794,6 +2052,7 @@ function startGame(){
   renderFleet();
   paintHud();
   checkMilestones();
+  checkQuests();
 
   if (state.seasonJustChanged){
     delete state.seasonJustChanged;
@@ -1815,7 +2074,9 @@ function wire(){
   $("lbTabGlobal").addEventListener("click", () => setLbMode("global"));
   $("lbTabCountry").addEventListener("click", () => setLbMode("country"));
   $("lbCountrySave").addEventListener("click", saveMyCountry);
-  $("lbReset").addEventListener("click", resetProgress);
+  $("resetPlanesBtn").addEventListener("click", resetPlanesOnly);
+  $("resetGemsBtn").addEventListener("click", resetGemsOnly);
+  $("resetAllBtn").addEventListener("click", resetProgress);
   $("confirmYes").addEventListener("click", () => settleConfirm(true));
   $("confirmNo").addEventListener("click", () => settleConfirm(false));
 
@@ -1830,6 +2091,7 @@ function wire(){
   $("toggleMusic").addEventListener("click", toggleMusicSetting);
   $("toggleVibrate").addEventListener("click", toggleVibrateSetting);
   $("volumeSlider").addEventListener("input", onVolumeChange);
+  $("trackSelect").addEventListener("change", onTrackChange);
   $("muteBtn").addEventListener("click", toggleMute);
   $("feedbackSend").addEventListener("click", sendFeedback);
 
@@ -1854,7 +2116,14 @@ function wire(){
 
   window.addEventListener("resize", () => { drawRings(); positionFleet(); });
   window.addEventListener("beforeunload", saveState);
-  document.addEventListener("visibilitychange", () => { if (document.hidden) saveState(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden){
+      saveState();
+      if (audioCtx && audioCtx.state === "running") audioCtx.suspend();
+    } else if (audioCtx && state && state.settings && state.settings.music && audioCtx.state === "suspended"){
+      audioCtx.resume();
+    }
+  });
 
   setInterval(() => { if (state) tickIncome(); }, BALANCE.tickMs);
   setInterval(() => { saveState(); syncLeaderboard(false); }, BALANCE.autosaveMs);
