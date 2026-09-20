@@ -216,11 +216,32 @@ input[type=text],input[type=password],input[type=number]{
   color:var(--contrail); font:inherit;
 }
 input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:transparent; }
+textarea{
+  width:100%; padding:11px 13px; margin-bottom:10px;
+  background:rgba(10,29,40,.7);
+  border:1px solid var(--edge); border-radius:9px;
+  color:var(--contrail); font:inherit; resize:vertical;
+}
+textarea:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:transparent; }
+.wallpaper-grid{
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:10px;
+  margin-top:6px;
+}
+.wallpaper-swatch{
+  border-radius:10px; border:2px solid var(--edge); padding:8px 6px;
+  text-align:center; font-size:.7rem; color:var(--muted); cursor:pointer;
+}
+.wallpaper-swatch.locked{ opacity:.4; cursor:not-allowed; }
+.wallpaper-swatch.active{ border-color:var(--beacon); color:var(--contrail); }
+.wallpaper-swatch .swatch-preview{ height:36px; border-radius:6px; margin-bottom:6px; }
+.star-row{ display:flex; gap:6px; font-size:2rem; margin:8px 0 6px; }
+.star-row .star{ cursor:pointer; color:var(--edge); }
+.star-row .star.filled{ color:var(--beacon); }
 .row{ display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 .row .btn{ flex:1 1 auto; }
 .note{ font-size:.78rem; color:var(--horizon); margin-top:14px; }
 .err{ color:var(--danger); font-size:.86rem; min-height:1.3em; margin:0 0 8px; }
-.tabs{ display:flex; gap:6px; margin-bottom:18px; }
+.tabs{ display:flex; gap:6px; margin-bottom:18px; flex-wrap:wrap; }
 .tab{
   flex:1; padding:9px; border-radius:9px; border:1px solid var(--edge);
   background:none; font-family:var(--font-display); font-weight:700; font-size:.9rem;
@@ -331,6 +352,7 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
       <span>Pilot <strong id="whoName">—</strong></span>
       <button class="linkish" id="logoutBtn">Sign out</button>
       <button class="linkish" id="leaderboardBtn">Leaderboard</button>
+      <button class="linkish" id="settingsBtn">Settings</button>
     </div>
   </header>
 
@@ -435,6 +457,69 @@ input:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color:tr
   </div>
 </div>
 
+<div class="scrim" id="settingsModal" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <h2 id="settingsTitle">Settings</h2>
+    <div class="tabs" role="tablist">
+      <button class="tab" id="setTabGeneral" role="tab" aria-selected="true">General</button>
+      <button class="tab" id="setTabFruits" role="tab" aria-selected="false">Fruits</button>
+      <button class="tab" id="setTabQuests" role="tab" aria-selected="false">Quests</button>
+      <button class="tab" id="setTabSound" role="tab" aria-selected="false">Sound</button>
+      <button class="tab" id="setTabFeedback" role="tab" aria-selected="false">Feedback</button>
+      <button class="tab" id="setTabRating" role="tab" aria-selected="false">Rating</button>
+    </div>
+
+    <div id="setPaneGeneral">
+      <p class="lede">Pick a wallpaper. Locked ones unlock when you buy that season in the shop.</p>
+      <div id="wallpaperGrid" class="wallpaper-grid"></div>
+    </div>
+
+    <div id="setPaneFruits" hidden>
+      <p class="lede">Merge past the planes to discover these. Keep merging matching ranks to work your way up.</p>
+      <div id="fruitsList"></div>
+    </div>
+
+    <div id="setPaneQuests" hidden>
+      <p class="lede">One-time goals based on your total gems earned. Claim each once you hit the target.</p>
+      <div id="questsList"></div>
+    </div>
+
+    <div id="setPaneSound" hidden>
+      <p class="lede">A calm ambient loop while you play, and a light buzz when planes merge.</p>
+      <div class="row" style="justify-content:space-between;">
+        <span>Ambient music</span>
+        <button class="btn ghost" id="toggleMusic">Off</button>
+      </div>
+      <div class="row" style="justify-content:space-between; margin-top:10px;">
+        <span>Merge vibration</span>
+        <button class="btn ghost" id="toggleVibrate">On</button>
+      </div>
+      <div class="row" style="justify-content:space-between; margin-top:10px; align-items:center;">
+        <span>Volume</span>
+        <input type="range" id="volumeSlider" min="0" max="100" value="60" style="flex:1 1 140px;">
+        <button class="btn ghost" id="muteBtn" style="flex:0 0 auto;">Mute</button>
+      </div>
+    </div>
+
+    <div id="setPaneFeedback" hidden>
+      <p class="lede">Tell me what's broken, confusing, or missing — I read every message.</p>
+      <textarea id="feedbackText" rows="4" placeholder="Type your feedback here…"></textarea>
+      <button class="btn primary" id="feedbackSend">Send feedback</button>
+      <p class="note" id="feedbackNote"></p>
+    </div>
+
+    <div id="setPaneRating" hidden>
+      <p class="lede">Enjoying Skyloop? Give it a star rating.</p>
+      <div id="starRow" class="star-row"></div>
+      <p class="note" id="ratingNote"></p>
+    </div>
+
+    <div class="row" style="margin-top:20px">
+      <button class="btn primary" id="settingsClose">Back to the loop</button>
+    </div>
+  </div>
+</div>
+
 <div class="scrim" id="helpModal" hidden>
   <div class="panel" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
     <h2 id="helpTitle">How to play</h2>
@@ -489,8 +574,40 @@ const PLANE_TIERS = [
   { name: "Regional Jet",  income: 72,   color: "#8aa6ff", scale: 0.98 },
   { name: "Widebody",      income: 200,  color: "#c69bff", scale: 1.05 },
   { name: "Supersonic",    income: 560,  color: "#ffb020", scale: 1.12 },
-  { name: "Monsoon Queen", income: 1600, color: "#ff8f6b", scale: 1.22 }
+  { name: "Monsoon Queen", income: 1600, color: "#ff8f6b", scale: 1.22 },
+  // Fruit tiers: the merge chain keeps going past planes for late-game players.
+  { name: "Comet Cherry",     income: 5000,          color: "#ff4d6d", scale: 1.28, kind: "fruit" },
+  { name: "Golden Apple",     income: 20000,         color: "#ffd23f", scale: 1.32, kind: "fruit" },
+  { name: "Blue Dragonfruit", income: 90000,         color: "#4fa8ff", scale: 1.36, kind: "fruit" },
+  { name: "Solar Mango",      income: 400000,        color: "#ff9f1c", scale: 1.40, kind: "fruit" },
+  { name: "Crimson Berry",    income: 1800000,       color: "#e63950", scale: 1.44, kind: "fruit" },
+  { name: "Frost Melon",      income: 8000000,       color: "#8de3d8", scale: 1.48, kind: "fruit" },
+  { name: "Neon Kiwi",        income: 35000000,      color: "#9ef01a", scale: 1.52, kind: "fruit" },
+  { name: "Phantom Pineapple",income: 150000000,     color: "#c77dff", scale: 1.56, kind: "fruit" },
+  { name: "Starfruit Prime",  income: 650000000,     color: "#ffe066", scale: 1.60, kind: "fruit" },
+  { name: "Infinity Fig",     income: 1000000000000, color: "#ffffff", scale: 1.70, kind: "fruit" }
 ];
+
+// Ten purchasable cosmetic wallpapers. Season 1 is the default look everyone
+// starts with (free, always unlocked); Seasons 2–10 are bought in the shop
+// and equipped from Settings → General.
+const SEASON_THEMES = [
+  { id: 1,  name: "Season 1 — Monsoon Skies",  price: 0,    bg: "radial-gradient(120% 80% at 50% 8%, #1a4055 0%, #0f2836 42%, #0a1d28 100%)" },
+  { id: 2,  name: "Season 2 — Solar Flare",    price: 600,  bg: "radial-gradient(120% 80% at 50% 8%, #6b2d12 0%, #3a1608 42%, #1c0a04 100%)" },
+  { id: 3,  name: "Season 3 — Aurora Run",     price: 900,  bg: "radial-gradient(120% 80% at 50% 8%, #164a3f 0%, #0c2a24 42%, #061815 100%)" },
+  { id: 4,  name: "Season 4 — Deep Space",     price: 1300, bg: "radial-gradient(120% 80% at 50% 8%, #241a4a 0%, #140f2c 42%, #0a0718 100%)" },
+  { id: 5,  name: "Season 5 — Coral Dusk",     price: 1800, bg: "radial-gradient(120% 80% at 50% 8%, #7a2f4a 0%, #401829 42%, #1f0c14 100%)" },
+  { id: 6,  name: "Season 6 — Arctic Drift",   price: 2400, bg: "radial-gradient(120% 80% at 50% 8%, #1c4a5e 0%, #0f2733 42%, #08151c 100%)" },
+  { id: 7,  name: "Season 7 — Golden Hour",    price: 3100, bg: "radial-gradient(120% 80% at 50% 8%, #7a5a12 0%, #402e08 42%, #1f1604 100%)" },
+  { id: 8,  name: "Season 8 — Neon Circuit",   price: 4000, bg: "radial-gradient(120% 80% at 50% 8%, #1a2d5e 0%, #0d1733 42%, #06091c 100%)" },
+  { id: 9,  name: "Season 9 — Volcanic Ash",   price: 5200, bg: "radial-gradient(120% 80% at 50% 8%, #4a1c1c 0%, #290e0e 42%, #140707 100%)" },
+  { id: 10, name: "Season 10 — Nebula Veil",   price: 6800, bg: "radial-gradient(120% 80% at 50% 8%, #3a1a5e 0%, #1f0d33 42%, #10061c 100%)" }
+];
+
+function applyWallpaper(id){
+  const season = SEASON_THEMES.find(s => s.id === id) || SEASON_THEMES[0];
+  document.body.style.background = season.bg;
+}
 
 const COUNTRIES = [
   "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia","Austria",
@@ -733,6 +850,175 @@ async function resetProgress(){
   toast("Your progress has been reset.");
 }
 
+/* ------------------------------------------------------------------
+   AMBIENT MUSIC — a small original generative pad (four sine tones with
+   slow, staggered volume drift), not a recording of any real track.
+   Starting audio needs a user gesture, so this only ever runs from a
+   click handler (sign-in, or flipping the Sound toggle).
+   ------------------------------------------------------------------ */
+let audioCtx = null;
+let musicNodes = [];
+let musicMaster = null;
+
+function currentVolume(){
+  if (!state || !state.settings) return 0.6;
+  return state.settings.muted ? 0 : state.settings.volume;
+}
+
+function startMusic(){
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+  } catch (e){ return; }
+
+  stopMusic();
+  const freqs = [130.81, 164.81, 196.00, 246.94]; // a calm, consonant chord
+  const master = audioCtx.createGain();
+  master.gain.value = 0.08 * currentVolume();
+  master.connect(audioCtx.destination);
+  musicMaster = master;
+  musicNodes.push(master);
+
+  freqs.forEach((f, i) => {
+    const osc = audioCtx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = f;
+    const gain = audioCtx.createGain();
+    gain.gain.value = 0.03;
+    osc.connect(gain); gain.connect(master);
+
+    const lfo = audioCtx.createOscillator();
+    lfo.frequency.value = 0.04 + i * 0.015; // slow "breathing" drift, staggered per voice
+    const lfoGain = audioCtx.createGain();
+    lfoGain.gain.value = 0.02;
+    lfo.connect(lfoGain);
+    lfoGain.connect(gain.gain);
+
+    osc.start(); lfo.start();
+    musicNodes.push(osc, lfo, gain, lfoGain);
+  });
+}
+
+function applyMusicVolume(){
+  if (musicMaster) musicMaster.gain.value = 0.08 * currentVolume();
+}
+
+function stopMusic(){
+  musicNodes.forEach(n => {
+    try { n.stop && n.stop(); } catch (e){}
+    try { n.disconnect && n.disconnect(); } catch (e){}
+  });
+  musicNodes = [];
+  musicMaster = null;
+}
+
+function vibrateOnMerge(){
+  if (state && state.settings && state.settings.vibrate && navigator.vibrate){
+    try { navigator.vibrate(35); } catch (e){}
+  }
+}
+
+const MILESTONE_GEMS = 1000000000; // 1,000,000,000 gems
+
+function checkMilestones(){
+  if (!state || state.milestone1B || state.gems < MILESTONE_GEMS) return;
+  state.milestone1B = true;
+  state.unlockedSeasons = SEASON_THEMES.map(s => s.id);
+  const firstFruitIndex = PLANE_TIERS.findIndex(t => t.kind === "fruit");
+  if (firstFruitIndex !== -1 && state.planes.length < state.slots){
+    addPlane(state, firstFruitIndex);
+    renderFleet();
+  }
+  saveState();
+  toast("1,000,000,000 gems! Every season and wallpaper is unlocked, plus a bonus " + PLANE_TIERS[firstFruitIndex].name + ".");
+}
+
+async function sendFeedback(){
+  const box = $("feedbackText");
+  const note = $("feedbackNote");
+  const msg = box.value.trim();
+  if (!msg){ note.textContent = "Type something first."; return; }
+  if (!dbCap){
+    note.textContent = "Feedback only reaches me when this page is opened via its Claude link.";
+    return;
+  }
+  try {
+    const users = read(STORE.users, {});
+    await dbCap.doc("feedback/" + user + "-" + Date.now()).set({
+      pilot: (users[user] && users[user].name) || user,
+      message: msg,
+      ts: Date.now()
+    });
+    box.value = "";
+    note.textContent = "Sent — thank you!";
+  } catch (e){
+    note.textContent = "Could not send right now. Try again in a moment.";
+  }
+}
+
+let myStars = 0;
+
+function renderStars(selected){
+  myStars = selected;
+  const row = $("starRow");
+  row.innerHTML = "";
+  for (let i = 1; i <= 5; i++){
+    const s = document.createElement("span");
+    s.className = "star" + (i <= selected ? " filled" : "");
+    s.textContent = "★";
+    s.addEventListener("click", () => submitRating(i));
+    row.appendChild(s);
+  }
+}
+
+async function loadRatingPane(){
+  const note = $("ratingNote");
+  note.textContent = "";
+  if (!dbCap){
+    renderStars(0);
+    note.textContent = "Ratings only save when this page is opened via its Claude link.";
+    return;
+  }
+  try {
+    const snap = await dbCap.doc("ratings/" + user).get();
+    renderStars(snap && snap.exists ? (snap.data().stars || 0) : 0);
+  } catch (e){ renderStars(0); }
+  refreshRatingAverage();
+}
+
+async function submitRating(stars){
+  renderStars(stars);
+  const note = $("ratingNote");
+  if (!dbCap){
+    note.textContent = "Ratings only save when this page is opened via its Claude link.";
+    return;
+  }
+  try {
+    const users = read(STORE.users, {});
+    await dbCap.doc("ratings/" + user).set({
+      stars: stars,
+      pilot: (users[user] && users[user].name) || user,
+      ts: Date.now()
+    });
+    note.textContent = "Thanks for rating!";
+    refreshRatingAverage();
+  } catch (e){
+    note.textContent = "Could not save your rating right now.";
+  }
+}
+
+async function refreshRatingAverage(){
+  if (!dbCap) return;
+  try {
+    const snap = await dbCap.collection("ratings").limit(1000).get();
+    const vals = snap.docs.map(d => d.data().stars).filter(v => typeof v === "number");
+    if (vals.length === 0) return;
+    const avg = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const note = $("ratingNote");
+    note.textContent = "Average: " + avg.toFixed(1) + "★ from " + vals.length + " " + (vals.length === 1 ? "pilot" : "pilots") + ". Thanks for rating!";
+  } catch (e){}
+}
+
 let state = null;
 let user = null;
 let picked = null;
@@ -750,6 +1036,13 @@ function freshState(){
     boostLevel: 0,
     taps: 0,
     merges: 0,
+    unlockedSeasons: [1],
+    activeWallpaper: 1,
+    milestone1B: false,
+    lifetimeGems: 0,
+    fruitsSeen: [],
+    questsClaimed: [],
+    settings: { music: false, vibrate: true, volume: 0.6, muted: false },
     createdAt: Date.now()
   };
 }
@@ -760,6 +1053,23 @@ function loadState(username){
   if (!Array.isArray(s.planes)) s.planes = [];
   s.planes = s.planes.filter(p => p && PLANE_TIERS[p.tier]);
   s.slots = clamp(s.slots, BALANCE.startingSlots, BALANCE.maxSlots);
+  if (!Array.isArray(s.unlockedSeasons)) s.unlockedSeasons = [1];
+  if (!s.unlockedSeasons.includes(1)) s.unlockedSeasons.push(1);
+  if (!s.activeWallpaper || !SEASON_THEMES.find(t => t.id === s.activeWallpaper)) s.activeWallpaper = 1;
+  if (!s.settings) s.settings = { music: false, vibrate: true, volume: 0.6, muted: false };
+  if (typeof s.settings.music !== "boolean") s.settings.music = false;
+  if (typeof s.settings.vibrate !== "boolean") s.settings.vibrate = true;
+  if (typeof s.settings.volume !== "number" || s.settings.volume < 0 || s.settings.volume > 1) s.settings.volume = 0.6;
+  if (typeof s.settings.muted !== "boolean") s.settings.muted = false;
+  if (typeof s.milestone1B !== "boolean") s.milestone1B = false;
+  if (typeof s.lifetimeGems !== "number" || s.lifetimeGems < s.gems) s.lifetimeGems = s.gems;
+  if (!Array.isArray(s.fruitsSeen)) s.fruitsSeen = [];
+  if (!Array.isArray(s.questsClaimed)) s.questsClaimed = [];
+  s.planes.forEach(p => {
+    if (PLANE_TIERS[p.tier] && PLANE_TIERS[p.tier].kind === "fruit" && !s.fruitsSeen.includes(p.tier)){
+      s.fruitsSeen.push(p.tier);
+    }
+  });
   if (s.season !== GAME_SEASON.id){
     s.season = GAME_SEASON.id;
     s.seasonJustChanged = true;
@@ -784,6 +1094,7 @@ function addPlane(s, tier){
   let slot = 0; while (used.has(slot)) slot++;
   const p = { id: s.nextPlaneId++, tier, slot, fresh: true };
   s.planes.push(p);
+  if (tier > (s.highestTierReached || 0)) s.highestTierReached = tier;
   return p;
 }
 
@@ -809,7 +1120,7 @@ function toast(msg){
 function openModal(el){ el.hidden = false; }
 function closeModal(el){ el.hidden = true; }
 const anyModalOpen = () =>
-  ["authModal","quizModal","shopModal","helpModal","leaderboardModal","confirmModal"].some(id => !$(id).hidden);
+  ["authModal","quizModal","shopModal","helpModal","leaderboardModal","confirmModal","settingsModal"].some(id => !$(id).hidden);
 
 let authMode = "login";
 
@@ -887,10 +1198,12 @@ function submitAuth(){
 
 function signOut(){
   saveState();
+  stopMusic();
   drop(STORE.session);
   user = null; state = null; picked = null;
   $("shell").hidden = true;
-  ["quizModal","shopModal","helpModal","leaderboardModal"].forEach(id => closeModal($(id)));
+  document.body.style.background = "";
+  ["quizModal","shopModal","helpModal","leaderboardModal","settingsModal"].forEach(id => closeModal($(id)));
   $("orbit").innerHTML = "";
   setAuthMode("login");
   openModal($("authModal"));
@@ -945,6 +1258,154 @@ function setLbMode(mode){
   $("lbTabGlobal").setAttribute("aria-selected", mode === "global");
   $("lbTabCountry").setAttribute("aria-selected", mode === "country");
   renderLeaderboard();
+}
+
+const SETTINGS_TABS = ["general", "fruits", "quests", "sound", "feedback", "rating"];
+
+const QUESTS = [
+  { gems: 1000,        reward: "Just the glory — keep tapping." },
+  { gems: 10000,       reward: "You're building a real fleet now." },
+  { gems: 100000,      reward: "The loop is getting crowded." },
+  { gems: 1000000,     reward: "Millionaire pilot status." },
+  { gems: 10000000,    reward: "Getting close to fruit territory." },
+  { gems: 100000000,   reward: "The sky is nearly yours." },
+  { gems: 1000000000,  reward: "Unlocks every season and wallpaper, plus a bonus fruit plane." }
+];
+
+function openSettings(){
+  renderWallpaperGrid();
+  renderFruitsList();
+  renderQuests();
+  syncSoundButtons();
+  setSettingsTab("general");
+  openModal($("settingsModal"));
+  loadRatingPane();
+}
+
+function renderFruitsList(){
+  const wrap = $("fruitsList");
+  wrap.innerHTML = "";
+  PLANE_TIERS.forEach((tier, idx) => {
+    if (tier.kind !== "fruit") return;
+    const unlocked = state.fruitsSeen.includes(idx);
+    const row = document.createElement("div");
+    row.className = "item";
+
+    const h = document.createElement("h3");
+    h.textContent = (unlocked ? "" : "🔒 ") + tier.name;
+
+    const badge = document.createElement("span");
+    badge.className = "btn ghost";
+    badge.style.pointerEvents = "none";
+    badge.textContent = unlocked ? "Unlocked" : "Locked";
+
+    const p = document.createElement("p");
+    p.textContent = unlocked
+      ? "Earns " + money(tier.income) + " gems/sec while it's on your loop."
+      : "Merge your way up the loop to discover this one.";
+
+    row.append(h, badge, p);
+    wrap.appendChild(row);
+  });
+}
+
+function renderQuests(){
+  const wrap = $("questsList");
+  wrap.innerHTML = "";
+  QUESTS.forEach(q => {
+    const done = state.lifetimeGems >= q.gems;
+    const row = document.createElement("div");
+    row.className = "item";
+
+    const h = document.createElement("h3");
+    h.textContent = (done ? "✅ " : "⬜ ") + "Reach " + money(q.gems) + " gems";
+
+    const badge = document.createElement("span");
+    badge.className = "btn ghost";
+    badge.style.pointerEvents = "none";
+    badge.textContent = done ? "Done" : "In progress";
+
+    const p = document.createElement("p");
+    p.textContent = q.reward;
+
+    row.append(h, badge, p);
+    wrap.appendChild(row);
+  });
+}
+
+function setSettingsTab(tab){
+  SETTINGS_TABS.forEach(t => {
+    const cap = t[0].toUpperCase() + t.slice(1);
+    $("setTab" + cap).setAttribute("aria-selected", t === tab);
+    $("setPane" + cap).hidden = t !== tab;
+  });
+  if (tab === "feedback") $("feedbackNote").textContent = dbCap ? "" : "Feedback only reaches me when this page is opened via its Claude link.";
+}
+
+function renderWallpaperGrid(){
+  const grid = $("wallpaperGrid");
+  grid.innerHTML = "";
+  SEASON_THEMES.forEach(season => {
+    const owned = state.unlockedSeasons.includes(season.id);
+    const cell = document.createElement("div");
+    cell.className = "wallpaper-swatch" + (owned ? "" : " locked") + (state.activeWallpaper === season.id ? " active" : "");
+
+    const preview = document.createElement("div");
+    preview.className = "swatch-preview";
+    preview.style.background = season.bg;
+
+    const label = document.createElement("div");
+    const shortName = season.name.replace(/^Season \d+ — /, "");
+    label.textContent = owned ? shortName : "🔒 " + shortName;
+
+    cell.append(preview, label);
+
+    if (owned){
+      cell.addEventListener("click", () => {
+        state.activeWallpaper = season.id;
+        applyWallpaper(season.id);
+        $("seasonChip").textContent = season.name;
+        saveState();
+        renderWallpaperGrid();
+        toast(season.name + " equipped.");
+      });
+    }
+    grid.appendChild(cell);
+  });
+}
+
+function syncSoundButtons(){
+  $("toggleMusic").textContent = state.settings.music ? "On" : "Off";
+  $("toggleVibrate").textContent = state.settings.vibrate ? "On" : "Off";
+  $("volumeSlider").value = Math.round(state.settings.volume * 100);
+  $("muteBtn").textContent = state.settings.muted ? "Unmute" : "Mute";
+  applyMusicVolume();
+}
+
+function onVolumeChange(e){
+  state.settings.volume = Number(e.target.value) / 100;
+  if (state.settings.muted && state.settings.volume > 0) state.settings.muted = false;
+  saveState();
+  syncSoundButtons();
+}
+
+function toggleMute(){
+  state.settings.muted = !state.settings.muted;
+  saveState();
+  syncSoundButtons();
+}
+
+function toggleMusicSetting(){
+  state.settings.music = !state.settings.music;
+  if (state.settings.music) startMusic(); else stopMusic();
+  saveState();
+  syncSoundButtons();
+}
+
+function toggleVibrateSetting(){
+  state.settings.vibrate = !state.settings.vibrate;
+  saveState();
+  syncSoundButtons();
 }
 
 async function renderLeaderboard(){
@@ -1085,6 +1546,51 @@ function renderShop(){
     row.append(h, b, p);
     list.appendChild(row);
   });
+
+  const heading = document.createElement("h3");
+  heading.textContent = "Seasons";
+  heading.style.marginTop = "18px";
+  list.appendChild(heading);
+
+  SEASON_THEMES.forEach(season => {
+    const owned = state.unlockedSeasons.includes(season.id);
+    const row = document.createElement("div");
+    row.className = "item seasonal";
+
+    const h = document.createElement("h3");
+    h.textContent = season.name;
+
+    const p = document.createElement("p");
+    p.textContent = owned
+      ? "Unlocked. Equip it from Settings → General."
+      : "Unlocks a new sky wallpaper for your loop.";
+
+    const b = document.createElement("button");
+    if (owned){
+      b.className = "btn ghost";
+      b.disabled = true;
+      b.textContent = "Unlocked";
+    } else {
+      const afford = state.gems >= season.price;
+      b.className = "btn buy" + (afford ? " primary" : "");
+      b.disabled = !afford;
+      b.innerHTML = "<span class='price'>" + money(season.price) + "</span> gems";
+      b.addEventListener("click", () => buySeason(season));
+    }
+
+    row.append(h, b, p);
+    list.appendChild(row);
+  });
+}
+
+function buySeason(season){
+  if (state.gems < season.price){ toast("Not enough gems yet."); return; }
+  state.gems -= season.price;
+  state.unlockedSeasons.push(season.id);
+  saveState();
+  renderShop();
+  paintHud();
+  toast(season.name + " unlocked! Equip it from Settings.");
 }
 
 function buy(item){
@@ -1106,6 +1612,13 @@ const PLANE_SVG = color => `
         fill="${color}"/>
   <path d="M32 4c3 0 5 6 5.4 13.4L58 31.6c1.2.8 1.8 2 1.8 3.3v3.6c0 .9-.9 1.5-1.7 1.2L37.6 33c-.2 5-.7 9.4-1.4 12.6l7.5 5.6c.7.5 1.1 1.3 1.1 2.2v2.2c0 .8-.8 1.4-1.6 1.1L32 53z"
         fill="rgba(0,0,0,.18)"/>
+</svg>`;
+
+const FRUIT_SVG = color => `
+<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+  <circle cx="32" cy="37" r="21" fill="${color}"/>
+  <ellipse cx="24" cy="30" rx="7" ry="4" fill="rgba(255,255,255,.35)"/>
+  <path d="M32 16c0-7 7-11 12-11-2 7-5 11-12 11z" fill="#2e7d32"/>
 </svg>`;
 
 function ringRadii(){
@@ -1147,7 +1660,7 @@ function renderFleet(){
       + ", earns " + tier.income + " gems a second");
     el.style.setProperty("--scale", tier.scale);
     if (el.dataset.painted !== String(p.tier)){
-      el.innerHTML = PLANE_SVG(tier.color)
+      el.innerHTML = (tier.kind === "fruit" ? FRUIT_SVG : PLANE_SVG)(tier.color)
         + '<span class="tier-pip">' + (p.tier + 1) + "</span>";
       el.dataset.painted = String(p.tier);
     }
@@ -1206,12 +1719,15 @@ function tapPlane(id){
   plane.tier += 1;
   state.planes = state.planes.filter(p => p.id !== other.id);
   state.merges++;
+  if (plane.tier > (state.highestTierReached || 0)) state.highestTierReached = plane.tier;
   picked = null;
 
   const el = $("orbit").querySelector('[data-id="' + plane.id + '"]');
   if (el){ el.dataset.painted = ""; el.classList.add("is-new"); setTimeout(() => el.classList.remove("is-new"), 500); }
 
   renderFleet(); paintHud(); saveState();
+  vibrateOnMerge();
+  checkMilestones();
   toast("Merged into a " + PLANE_TIERS[plane.tier].name + ".");
 }
 
@@ -1219,6 +1735,8 @@ function tapSky(ev){
   if (anyModalOpen()) return;
   state.gems += perClick();
   state.taps++;
+  if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
+  checkMilestones();
   if (picked !== null){ picked = null; renderFleet(); }
 
   const s = document.createElement("span");
@@ -1248,7 +1766,12 @@ function paintHud(){
 
 function tickIncome(){
   const gained = income(state) * (BALANCE.tickMs / 1000);
-  if (gained > 0){ state.gems += gained; paintHud(); }
+  if (gained > 0){
+    state.gems += gained;
+    if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
+    paintHud();
+    checkMilestones();
+  }
 }
 
 function frame(t){
@@ -1264,10 +1787,13 @@ function frame(t){
 
 function startGame(){
   $("shell").hidden = false;
-  $("seasonChip").textContent = GAME_SEASON.name;
+  $("seasonChip").textContent = (SEASON_THEMES.find(s => s.id === state.activeWallpaper) || SEASON_THEMES[0]).name;
+  applyWallpaper(state.activeWallpaper);
+  if (state.settings.music) startMusic();
   drawRings();
   renderFleet();
   paintHud();
+  checkMilestones();
 
   if (state.seasonJustChanged){
     delete state.seasonJustChanged;
@@ -1293,6 +1819,20 @@ function wire(){
   $("confirmYes").addEventListener("click", () => settleConfirm(true));
   $("confirmNo").addEventListener("click", () => settleConfirm(false));
 
+  $("settingsBtn").addEventListener("click", e => { e.stopPropagation(); openSettings(); });
+  $("settingsClose").addEventListener("click", () => closeModal($("settingsModal")));
+  $("setTabGeneral").addEventListener("click", () => setSettingsTab("general"));
+  $("setTabFruits").addEventListener("click", () => setSettingsTab("fruits"));
+  $("setTabQuests").addEventListener("click", () => setSettingsTab("quests"));
+  $("setTabSound").addEventListener("click", () => setSettingsTab("sound"));
+  $("setTabFeedback").addEventListener("click", () => setSettingsTab("feedback"));
+  $("setTabRating").addEventListener("click", () => setSettingsTab("rating"));
+  $("toggleMusic").addEventListener("click", toggleMusicSetting);
+  $("toggleVibrate").addEventListener("click", toggleVibrateSetting);
+  $("volumeSlider").addEventListener("input", onVolumeChange);
+  $("muteBtn").addEventListener("click", toggleMute);
+  $("feedbackSend").addEventListener("click", sendFeedback);
+
   $("airspace").addEventListener("click", tapSky);
 
   $("shopBtn").addEventListener("click", e => { e.stopPropagation(); openQuiz(); });
@@ -1309,7 +1849,7 @@ function wire(){
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     if (!$("confirmModal").hidden){ settleConfirm(false); return; }
-    ["quizModal","shopModal","helpModal","leaderboardModal"].forEach(id => closeModal($(id)));
+    ["quizModal","shopModal","helpModal","leaderboardModal","settingsModal"].forEach(id => closeModal($(id)));
   });
 
   window.addEventListener("resize", () => { drawRings(); positionFleet(); });
