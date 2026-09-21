@@ -57,6 +57,7 @@ header{
   flex-wrap:wrap;
   z-index:3;
 }
+.season-col{ display:flex; flex-direction:column; gap:4px; align-items:flex-start; }
 .season{
   font-family:var(--font-display);
   font-weight:700; font-size:.82rem; letter-spacing:.01em;
@@ -65,6 +66,9 @@ header{
   border-radius:999px;
   padding:4px 12px;
   white-space:nowrap;
+}
+.streak{
+  font-size:.72rem; color:var(--muted); padding-left:2px; white-space:nowrap;
 }
 .gem-readout{
   margin-inline:auto;
@@ -343,7 +347,10 @@ textarea:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color
 </script>
 <div id="shell" hidden>
   <header>
-    <span class="season" id="seasonChip">Season 1</span>
+    <div class="season-col">
+      <span class="season" id="seasonChip">Season 1</span>
+      <span class="streak" id="streakChip"></span>
+    </div>
     <div class="gem-readout">
       <span class="gem-count" id="gemCount">0</span>
       <span class="gem-label">Gems<span class="rate" id="rate">idle</span></span>
@@ -450,6 +457,16 @@ textarea:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color
     <div class="row">
       <button class="btn ghost" id="confirmNo">No</button>
       <button class="btn primary" id="confirmYes">Yes</button>
+    </div>
+  </div>
+</div>
+
+<div class="scrim" id="congratsModal" hidden>
+  <div class="panel" role="dialog" aria-modal="true" aria-labelledby="congratsTitle">
+    <h2 id="congratsTitle">🎉 Congrats!</h2>
+    <p class="lede" id="congratsMsg"></p>
+    <div class="row">
+      <button class="btn primary" id="congratsClose">Nice!</button>
     </div>
   </div>
 </div>
@@ -1140,17 +1157,25 @@ function noteFruitDiscovered(s, tierIndex){
   return reward;
 }
 
-function checkQuests(){
-  if (!state) return;
-  QUESTS.forEach((q, i) => {
-    if (state.lifetimeGems >= q.gems && !state.questsClaimed.includes(i)){
-      state.questsClaimed.push(i);
-      state.gems += q.reward;
-      if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
-      paintHud();
-      toast("Quest complete — " + money(q.gems) + " gems reached! +" + money(q.reward) + " bonus.");
-    }
-  });
+function ordinal(n){
+  const s = ["th", "st", "nd", "rd"];
+  const v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+function claimQuest(i){
+  const q = QUESTS[i];
+  if (!q || state.questsClaimed.includes(i) || state.lifetimeGems < q.gems) return;
+  state.questsClaimed.push(i);
+  state.gems += q.reward;
+  if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
+  saveState();
+  paintHud();
+  renderQuests();
+
+  const count = state.questsClaimed.length;
+  $("congratsMsg").textContent = "You have completed your " + ordinal(count) + " quest! +" + money(q.reward) + " gems.";
+  openModal($("congratsModal"));
 }
 
 async function sendFeedback(){
@@ -1262,6 +1287,8 @@ function freshState(){
     lifetimeGems: 0,
     fruitsSeen: [],
     questsClaimed: [],
+    streak: 0,
+    lastPlayedDate: null,
     settings: { music: true, vibrate: true, volume: 0.6, muted: false, track: "ocean" },
     createdAt: Date.now()
   };
@@ -1286,6 +1313,8 @@ function loadState(username){
   if (typeof s.lifetimeGems !== "number" || s.lifetimeGems < s.gems) s.lifetimeGems = s.gems;
   if (!Array.isArray(s.fruitsSeen)) s.fruitsSeen = [];
   if (!Array.isArray(s.questsClaimed)) s.questsClaimed = [];
+  if (typeof s.streak !== "number") s.streak = 0;
+  if (typeof s.lastPlayedDate !== "string") s.lastPlayedDate = null;
   s.planes.forEach(p => {
     if (PLANE_TIERS[p.tier] && PLANE_TIERS[p.tier].kind === "fruit"){
       noteFruitDiscovered(s, p.tier);
@@ -1349,7 +1378,7 @@ function toast(msg){
 function openModal(el){ el.hidden = false; }
 function closeModal(el){ el.hidden = true; }
 const anyModalOpen = () =>
-  ["authModal","quizModal","shopModal","helpModal","leaderboardModal","confirmModal","settingsModal"].some(id => !$(id).hidden);
+  ["authModal","quizModal","shopModal","helpModal","leaderboardModal","confirmModal","settingsModal","congratsModal"].some(id => !$(id).hidden);
 
 let authMode = "login";
 
@@ -1541,25 +1570,38 @@ function renderFruitsList(){
 function renderQuests(){
   const wrap = $("questsList");
   wrap.innerHTML = "";
-  QUESTS.forEach(q => {
-    const done = state.lifetimeGems >= q.gems;
+  QUESTS.forEach((q, i) => {
+    const reached = state.lifetimeGems >= q.gems;
+    const claimed = state.questsClaimed.includes(i);
     const row = document.createElement("div");
     row.className = "item";
 
     const h = document.createElement("h3");
-    h.textContent = (done ? "✅ " : "⬜ ") + "Reach " + money(q.gems) + " gems";
+    h.textContent = (claimed ? "✅ " : reached ? "🎁 " : "⬜ ") + "Reach " + money(q.gems) + " gems";
 
-    const badge = document.createElement("span");
-    badge.className = "btn ghost";
-    badge.style.pointerEvents = "none";
-    badge.textContent = done ? "Done" : "In progress";
+    const btn = document.createElement("button");
+    if (claimed){
+      btn.className = "btn ghost";
+      btn.disabled = true;
+      btn.textContent = "Claimed";
+    } else if (reached){
+      btn.className = "btn primary";
+      btn.textContent = "Claim +" + money(q.reward) + " gems";
+      btn.addEventListener("click", () => claimQuest(i));
+    } else {
+      btn.className = "btn ghost";
+      btn.disabled = true;
+      btn.textContent = "Locked";
+    }
 
     const p = document.createElement("p");
-    p.textContent = done
-      ? ("Earned +" + money(q.reward) + " gems.")
-      : ("Reward: +" + money(q.reward) + " gems on completion.");
+    p.textContent = claimed
+      ? ("Claimed +" + money(q.reward) + " gems.")
+      : reached
+      ? "Tap Claim to collect your reward."
+      : ("Reward: +" + money(q.reward) + " gems when reached.");
 
-    row.append(h, badge, p);
+    row.append(h, btn, p);
     wrap.appendChild(row);
   });
 }
@@ -1979,7 +2021,6 @@ function tapPlane(id){
   renderFleet(); paintHud(); saveState();
   vibrateOnMerge();
   checkMilestones();
-  checkQuests();
   if (fruitReward > 0){
     toast(PLANE_TIERS[plane.tier].name + " discovered! +" + money(fruitReward) + " bonus gems.");
   } else {
@@ -1993,7 +2034,6 @@ function tapSky(ev){
   state.taps++;
   if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
   checkMilestones();
-  checkQuests();
   if (picked !== null){ picked = null; renderFleet(); }
 
   const s = document.createElement("span");
@@ -2028,7 +2068,6 @@ function tickIncome(){
     if (state.gems > state.lifetimeGems) state.lifetimeGems = state.gems;
     paintHud();
     checkMilestones();
-    checkQuests();
   }
 }
 
@@ -2043,16 +2082,32 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 
+function updateStreak(){
+  const today = new Date().toISOString().slice(0, 10);
+  if (state.lastPlayedDate !== today){
+    if (state.lastPlayedDate){
+      const prev = new Date(state.lastPlayedDate + "T00:00:00Z");
+      const cur = new Date(today + "T00:00:00Z");
+      const diffDays = Math.round((cur - prev) / 86400000);
+      state.streak = diffDays === 1 ? (state.streak || 0) + 1 : 1;
+    } else {
+      state.streak = 1;
+    }
+    state.lastPlayedDate = today;
+  }
+  $("streakChip").textContent = "🔥 " + state.streak + "-day streak";
+}
+
 function startGame(){
   $("shell").hidden = false;
   $("seasonChip").textContent = (SEASON_THEMES.find(s => s.id === state.activeWallpaper) || SEASON_THEMES[0]).name;
+  updateStreak();
   applyWallpaper(state.activeWallpaper);
   if (state.settings.music) startMusic();
   drawRings();
   renderFleet();
   paintHud();
   checkMilestones();
-  checkQuests();
 
   if (state.seasonJustChanged){
     delete state.seasonJustChanged;
@@ -2078,6 +2133,7 @@ function wire(){
   $("resetGemsBtn").addEventListener("click", resetGemsOnly);
   $("resetAllBtn").addEventListener("click", resetProgress);
   $("confirmYes").addEventListener("click", () => settleConfirm(true));
+  $("congratsClose").addEventListener("click", () => closeModal($("congratsModal")));
   $("confirmNo").addEventListener("click", () => settleConfirm(false));
 
   $("settingsBtn").addEventListener("click", e => { e.stopPropagation(); openSettings(); });
@@ -2111,6 +2167,7 @@ function wire(){
   document.addEventListener("keydown", e => {
     if (e.key !== "Escape") return;
     if (!$("confirmModal").hidden){ settleConfirm(false); return; }
+    if (!$("congratsModal").hidden){ closeModal($("congratsModal")); return; }
     ["quizModal","shopModal","helpModal","leaderboardModal","settingsModal"].forEach(id => closeModal($(id)));
   });
 
