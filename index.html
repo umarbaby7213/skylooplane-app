@@ -1468,6 +1468,7 @@ function signOut(){
 }
 
 let quizAnswer = null;
+let quizOnSuccess = null;
 
 function newQuestion(){
   const q = MATH_QUIZ.makers[rnd(0, MATH_QUIZ.makers.length - 1)]();
@@ -1478,7 +1479,8 @@ function newQuestion(){
   setTimeout(() => $("quizInput") && $("quizInput").focus(), 30);
 }
 
-function openQuiz(){
+function openQuiz(onSuccess){
+  quizOnSuccess = onSuccess || null;
   newQuestion();
   openModal($("quizModal"));
 }
@@ -1489,7 +1491,9 @@ function checkQuiz(){
   if (val === ""){ $("quizErr").textContent = "Type a number first."; return; }
   if (Number(val) === quizAnswer){
     closeModal($("quizModal"));
-    openShop();
+    const fn = quizOnSuccess;
+    quizOnSuccess = null;
+    if (fn) fn();
   } else {
     $("quizErr").textContent = "Not quite. Here is another one.";
     setTimeout(newQuestion, 700);
@@ -2089,7 +2093,7 @@ function updateStreak(){
       const prev = new Date(state.lastPlayedDate + "T00:00:00Z");
       const cur = new Date(today + "T00:00:00Z");
       const diffDays = Math.round((cur - prev) / 86400000);
-      state.streak = diffDays === 1 ? (state.streak || 0) + 1 : 1;
+      state.streak = diffDays === 1 ? (state.streak || 0) + 1 : 0;
     } else {
       state.streak = 1;
     }
@@ -2136,7 +2140,7 @@ function wire(){
   $("congratsClose").addEventListener("click", () => closeModal($("congratsModal")));
   $("confirmNo").addEventListener("click", () => settleConfirm(false));
 
-  $("settingsBtn").addEventListener("click", e => { e.stopPropagation(); openSettings(); });
+  $("settingsBtn").addEventListener("click", e => { e.stopPropagation(); openQuiz(openSettings); });
   $("settingsClose").addEventListener("click", () => closeModal($("settingsModal")));
   $("setTabGeneral").addEventListener("click", () => setSettingsTab("general"));
   $("setTabFruits").addEventListener("click", () => setSettingsTab("fruits"));
@@ -2153,7 +2157,7 @@ function wire(){
 
   $("airspace").addEventListener("click", tapSky);
 
-  $("shopBtn").addEventListener("click", e => { e.stopPropagation(); openQuiz(); });
+  $("shopBtn").addEventListener("click", e => { e.stopPropagation(); openQuiz(openShop); });
   $("helpBtn").addEventListener("click", e => { e.stopPropagation(); openModal($("helpModal")); });
   $("helpClose").addEventListener("click", () => closeModal($("helpModal")));
 
