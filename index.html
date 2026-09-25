@@ -2106,7 +2106,7 @@ function updateStreak(){
   if (state.lastPlayedDate !== today){
     if (state.lastPlayedDate){
       const diffDays = Math.round((parseLocalDate(today) - parseLocalDate(state.lastPlayedDate)) / 86400000);
-      state.streak = diffDays === 1 ? (state.streak || 0) + 1 : 0;
+      state.streak = diffDays === 1 ? (state.streak || 0) + 1 : 1;
     } else {
       state.streak = 1;
     }
