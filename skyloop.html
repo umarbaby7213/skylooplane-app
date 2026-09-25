@@ -350,6 +350,7 @@ textarea:focus{ outline:2px solid var(--horizon); outline-offset:0; border-color
     <div class="season-col">
       <span class="season" id="seasonChip">Season 1</span>
       <span class="streak" id="streakChip"></span>
+      <span class="streak" id="bestStreakChip"></span>
     </div>
     <div class="gem-readout">
       <span class="gem-count" id="gemCount">0</span>
@@ -1289,6 +1290,7 @@ function freshState(){
     questsClaimed: [],
     streak: 0,
     lastPlayedDate: null,
+    bestStreak: 0,
     settings: { music: true, vibrate: true, volume: 0.6, muted: false, track: "ocean" },
     createdAt: Date.now()
   };
@@ -1315,6 +1317,7 @@ function loadState(username){
   if (!Array.isArray(s.questsClaimed)) s.questsClaimed = [];
   if (typeof s.streak !== "number") s.streak = 0;
   if (typeof s.lastPlayedDate !== "string") s.lastPlayedDate = null;
+  if (typeof s.bestStreak !== "number" || s.bestStreak < s.streak) s.bestStreak = s.streak;
   s.planes.forEach(p => {
     if (PLANE_TIERS[p.tier] && PLANE_TIERS[p.tier].kind === "fruit"){
       noteFruitDiscovered(s, p.tier);
@@ -2086,20 +2089,32 @@ function frame(t){
   requestAnimationFrame(frame);
 }
 
+function localDateString(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return y + "-" + m + "-" + day;
+}
+
+function parseLocalDate(str){
+  const parts = str.split("-").map(Number);
+  return new Date(parts[0], parts[1] - 1, parts[2]);
+}
+
 function updateStreak(){
-  const today = new Date().toISOString().slice(0, 10);
+  const today = localDateString(new Date());
   if (state.lastPlayedDate !== today){
     if (state.lastPlayedDate){
-      const prev = new Date(state.lastPlayedDate + "T00:00:00Z");
-      const cur = new Date(today + "T00:00:00Z");
-      const diffDays = Math.round((cur - prev) / 86400000);
+      const diffDays = Math.round((parseLocalDate(today) - parseLocalDate(state.lastPlayedDate)) / 86400000);
       state.streak = diffDays === 1 ? (state.streak || 0) + 1 : 0;
     } else {
       state.streak = 1;
     }
     state.lastPlayedDate = today;
   }
+  if (!state.bestStreak || state.streak > state.bestStreak) state.bestStreak = state.streak;
   $("streakChip").textContent = "🔥 " + state.streak + "-day streak";
+  $("bestStreakChip").textContent = "🏆 Best: " + state.bestStreak + "-day streak";
 }
 
 function startGame(){
